@@ -1,0 +1,32 @@
+# Binaries
+agent/edb-agent
+client/edb
+
+# Build artifacts
+*.o
+*.a
+*.so
+*.dylib
+agent/build*/
+CMakeCache.txt
+CMakeFiles/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Go
+client/vendor/
+
+# Test artifacts
+*.test
+*.out
+coverage.html
+client/test.txt
