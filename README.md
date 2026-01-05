@@ -127,9 +127,12 @@ No external libraries in the agent - everything is implemented from scratch to k
 | `cat <file>` | Print file contents | ✅ |
 | `get <remote> [local]` | Download file | ✅ |
 | `put <local> <remote>` | Upload file | ✅ |
+| `rm`, `mv`, `cp`, `mkdir`, `chmod` | File operations | ✅ |
 | `uname` | System information | ✅ |
-| `exec <command>` | Run command (no shell) | 🚧 |
-| `rm`, `mv`, `cp`, `mkdir`, `chmod` | File operations | 🚧 |
+| `ps` | Process list (tree view) | ✅ |
+| `netstat` | Network connections (with PIDs) | ✅ |
+| `exec <command>` | Run command (no shell, raw execv) | ✅ |
+| `kill-agent` | Kill agent parent process (bind mode) | ✅ |
 | `mtd`, `firmware` | Firmware dumping | 📋 |
 | `bundle` | Artifact collection | 📋 |
 
@@ -142,14 +145,17 @@ No external libraries in the agent - everything is implemented from scratch to k
 - [x] Handshake and basic communication
 - [x] Navigation commands (ls, cd, pwd, cat)
 
-### Phase 1: Core 🚧
+### Phase 1: Core ✅
 - [x] Interactive shell with readline
 - [x] File transfer (get/put) with progress
-- [x] Command execution (exec, uname)
-- [ ] File operations (rm, mv, cp, mkdir, chmod)
+- [x] File operations (rm, mv, cp, mkdir, chmod)
+- [x] System commands (uname, ps, netstat)
+- [x] Command execution (exec - raw execv, no shell dependency)
+- [x] Fork-on-accept (bind mode persistence)
+- [x] kill-agent command
 - [ ] Cross-compilation for ARM, MIPS
 
-### Phase 2: Future 📋
+### Phase 2: Firmware & Artifacts 📋
 - [ ] Firmware dumping (MTD, UBI, block devices)
 - [ ] Artifact bundles with profiles
 - [ ] Hash manifest generation
@@ -158,6 +164,7 @@ No external libraries in the agent - everything is implemented from scratch to k
 - [ ] Serial transport (UART)
 - [ ] Tab completion
 - [ ] Hex viewer
+- [ ] Progress bars for large transfers
 
 ## Building
 
