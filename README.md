@@ -39,43 +39,36 @@ embbridge provides an adb-like experience for any embedded Linux system:
 
 ## Quick Start
 
-**1. Get the agent** — download a release or build from source:
+**1. Identify target architecture:**
 ```bash
-# Option A: Download pre-built binary from releases
-wget https://github.com/Necromancer-Labs/embbridge/releases/latest/download/edb-agent-arm
-
-# Option B: Build from source
-cd agent && make arm    # or: make mipsel, make arm64, etc.
+# On target device
+cat /proc/cpuinfo
 ```
 
-**2. Transfer agent to device** (use whatever method the device supports):
+**2. Get the matching binary** from [releases](https://github.com/Necromancer-Labs/embbridge/releases):
 
+| CPU | Binary |
+|-----|--------|
+| ARM (v5, v6, v7) | `edb-agent-arm` |
+| ARM64 / AArch64 | `edb-agent-arm64` |
+| MIPS big-endian | `edb-agent-mips` |
+| MIPS little-endian | `edb-agent-mipsel` |
+
+**3. Transfer to target and run:**
 ```bash
-# via wget (serve from workstation, fetch from device)
-Workstation: python -m http.server 8080
-Device:      wget -O /tmp/edb-agent http://192.168.1.100:8080/edb-agent-arm
-
-# via scp
-Workstation: scp edb-agent-arm root@192.168.1.50:/tmp/
-
-# via netcat (listen on device, push from workstation)
-Device:      nc -l -p 4444 > /tmp/edb-agent
-Workstation: nc 192.168.1.50 4444 < edb-agent-arm
-
-# via tftp
-Device:      tftp -g -r edb-agent-arm 192.168.1.100
-
-# Then on device:
-chmod +x /tmp/edb-agent-arm
-/tmp/edb-agent-arm -l 1337
+# On target
+chmod +x /tmp/edb-agent
+/tmp/edb-agent -l 1337        # listen mode
+# or
+/tmp/edb-agent -c 192.168.1.100:1337  # connect back to you
 ```
 
-**3. Connect from your workstation:**
+> Need help getting the binary onto the target? See [transfer techniques](https://necromancer-labs.github.io/embbridge/quickstart.html#2-transfer-agent-to-device).
+
+**4. Connect from workstation:**
 ```bash
 ./edb shell 192.168.1.50:1337
 ```
-
-That's it. You now have a consistent interface with file transfer, process listing, and more.
 
 ## Features
 
