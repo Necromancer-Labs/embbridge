@@ -131,10 +131,10 @@ Cross-compilation requires buildroot toolchains. Run `./scripts/build-toolchains
 
 | Binary | Compatibility | Typical Devices |
 |--------|---------------|-----------------|
-| `edb-agent-arm` | ARMv5+ (v5, v6, v7, v8 32-bit) | Raspberry Pi, routers, IoT |
-| `edb-agent-arm64` | AArch64 | Modern ARM systems |
-| `edb-agent-mips` | MIPS32 big-endian | Broadcom/Atheros routers |
-| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers |
+| `edb-agent-arm` | ARMv5+ (v5, v6, v7, v8 32-bit) | Raspberry Pi, NVRs, IoT |
+| `edb-agent-arm64` | AArch64 | Typically modern ARM systems |
+| `edb-agent-mips` | MIPS32 big-endian | Broadcom routers |
+| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers like tplinks or Dlinks |
 
 All binaries are statically linked (~50-180KB) with no runtime dependencies.
 
@@ -143,6 +143,12 @@ All binaries are statically linked (~50-180KB) with no runtime dependencies.
 - **Agent (C)**: Tiny static binary. No external dependencies. All commands implemented natively — no reliance on busybox or target shell.
 - **Client (Go)**: Interactive readline shell with history.
 - **Protocol**: MessagePack over TCP with length-prefixed framing.
+
+## Future Features
+
+- **Relative paths** — support `./` and `../` in common commands
+- **`ip` command** — show interfaces (`ip a`) and routes (`ip r`)
+- **Interactive exec** — PTY support for interactive sessions
 
 ## License
 
