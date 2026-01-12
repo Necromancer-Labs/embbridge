@@ -2,7 +2,7 @@
  * embbridge - Embedded Debug Bridge
  * https://github.com/Necromancer-Labs/embbridge
  *
- * File transfer commands: get, put
+ * File transfer commands: pull, push
  */
 
 package shell
@@ -28,7 +28,7 @@ func (m *EDBModule) doGet(remotePath, localPath string) {
 		}
 	}
 
-	data, _, mode, err := m.proto.Get(remotePath, progress)
+	data, _, mode, err := m.proto.Pull(remotePath, progress)
 	if err != nil {
 		fmt.Printf("\nError: %v\n", err)
 		return
@@ -81,7 +81,7 @@ func (m *EDBModule) doPut(localPath, remotePath string) {
 		}
 	}
 
-	if err := m.proto.Put(remotePath, data, mode, progress); err != nil {
+	if err := m.proto.Push(remotePath, data, mode, progress); err != nil {
 		fmt.Printf("\nError: %v\n", err)
 		return
 	}

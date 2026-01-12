@@ -1,237 +1,141 @@
 # embbridge
 
-**Embedded Debug Bridge** — an ADB-like tool for embedded systems research.
+**Embedded Debug Bridge** — adb, but for embedded systems.
 
-Goal: One easy tool for most embedded systems. 
+A lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, and device forensics.
 
 ## The Problem
 
-Embedded device access and investigation is super fragmented:
+Android has `adb`. It's standard, reliable, and works the same on every device. You can always `adb pull`, `adb shell`, `adb push`, etc.
 
-- Every brand has different shell access (UART, Telnet, ssh, proprietary protocols)
-- File transfer usually doesn't exist. You never really know if you'll be able to get files off the easy way or hard way. 
-- No standard way to collect firmware dumps and artifacts
+Embedded Linux has nothing like this. Every device is different:
+- Different shells (or none)
+- Different available utilities (busybox, toybox, UART, telnet)
+- Different file transfer options (tftp? scp? wget? none?)
+- No consistent way to collect firmware, logs, or artifacts
 
-Every device is different. This is frustrating.
+You never know what you're going to get, this is frustrating. 
 
 ## The Solution
 
-A standardized tool with two connection modes:
+embbridge provides an adb-like experience for any embedded Linux system:
+- **One agent binary** — statically linked, ~50-180KB, runs anywhere
+- **Consistent interface** — same commands work on every device
+- **Self-contained** — doesn't rely on target utilities; all commands implemented natively
 
-**Reverse (agent connects to you):**
+## Quick Start
+
+**1. Get the agent** — download a release or build from source:
 ```bash
-# On your workstation
-edb listen
+# Option A: Download pre-built binary from releases
+wget https://github.com/Necromancer-Labs/embbridge/releases/latest/download/edb-agent-arm
 
-# On the device
-./edb-agent -c 192.168.1.100:1337
+# Option B: Build from source
+cd agent && make arm    # or: make mipsel, make arm64, etc.
 ```
 
-**Bind (agent listens, you connect to it):**
+**2. Transfer agent to device** (use whatever method the device supports):
+
 ```bash
-# On the device
+# via wget (serve from workstation, fetch from device)
+Workstation: python -m http.server 8080
+Device:      wget -O /tmp/edb-agent http://192.168.1.100:8080/edb-agent-arm
+
+# via scp
+Workstation: scp edb-agent-arm root@192.168.1.50:/tmp/
+
+# via netcat (listen on device, push from workstation)
+Device:      nc -l -p 4444 > /tmp/edb-agent
+Workstation: nc 192.168.1.50 4444 < edb-agent-arm
+
+# via tftp
+Device:      tftp -g -r edb-agent-arm 192.168.1.100
+
+# Then on device:
+chmod +x /tmp/edb-agent-arm
+/tmp/edb-agent-arm -l 1337
+```
+
+**3. Connect from your workstation:**
+```bash
+./edb shell 192.168.1.50:1337
+```
+
+That's it. You now have a consistent interface with file transfer, process listing, and more.
+
+## Features
+
+| Command | Description |
+|---------|-------------|
+| `ls`, `cd`, `pwd`, `cat` | Directory navigation and file viewing |
+| `pull <remote> [local]` | Download file from device |
+| `push <local> <remote>` | Upload file to device |
+| `rm`, `mv`, `cp`, `mkdir`, `chmod` | File operations |
+| `ps` | Process tree |
+| `ss` | Network connections with PIDs |
+| `uname`, `whoami` | System info |
+| `dmesg` | Kernel log |
+| `strings <file>` | Extract printable strings |
+| `exec <cmd>` | Run binary (no shell) |
+| `reboot` | Reboot device |
+
+## Connection Modes
+
+**Bind mode** — agent listens, you connect to it:
+```bash
+# Device
 ./edb-agent -l 1337
 
-# On your workstation
-edb shell 192.168.1.50:1337
+# Workstation
+./edb shell 192.168.1.50:1337
 ```
 
-Either way, you get an interactive shell with file transfer:
+**Reverse mode** — agent connects out to you:
+```bash
+# Workstation
+./edb listen
 
+# Device
+./edb-agent -c 192.168.1.100:1337
 ```
-edb[/]> ls
-drwxr-xr-x    -  root     3 Jan 18:45  bin
-drwxr-xr-x    -  root     3 Jan 18:45  etc
-drwxr-xr-x    -  root     3 Jan 18:45  lib
-...
-
-edb[/]> cd /etc
-edb[/etc]> cat passwd
-root:x:0:0:root:/root:/bin/sh
-
-edb[/etc]> get passwd ./              # download file
-↓ Downloading passwd...
-  45 B downloaded in 0s (1.2 MB/s)
-
-edb[/etc]> put script.sh /tmp/        # upload file
-↑ Uploading script.sh (1.2 KB)...
-  1.2 KB uploaded in 0s (2.4 MB/s)
-
-edb[/etc]> exec "uname -a"            # run commands
-Linux router 4.14.90 #1 SMP armv7l GNU/Linux
-```
-
-## Architecture
-
-**Reverse mode** (agent connects out):
-```
-┌─────────────────────┐         ┌─────────────────────┐
-│   edb client (Go)   │◄────────│   edb agent (C)     │
-│   your workstation  │  msgpack│   tiny, static      │
-│                     │         │   on the device     │
-│   edb listen :1337  │◄────────│ ./edb-agent -c IP   │
-└─────────────────────┘         └─────────────────────┘
-```
-
-**Bind mode** (you connect to agent):
-```
-┌─────────────────────┐         ┌─────────────────────┐
-│   edb client (Go)   │────────►│   edb agent (C)     │
-│   your workstation  │  msgpack│   tiny, static      │
-│                     │         │   on the device     │
-│   edb shell IP:1337 │────────►│ ./edb-agent -l 1337 │
-└─────────────────────┘         └─────────────────────┘
-```
-
-### Agent (C)
-- **Tiny**: Target <100KB static binary
-- **No dependencies**: Static linking, runs on anything
-- **Multi-arch**: ARM, MIPS, x86, RISC-V
-- **Self-contained**: All commands implemented natively - no reliance on target shell (busybox, ash, etc)
-
-### Client (Go)
-- **Interactive shell**: Readline-based with history and completion
-- **File transfer**: Get and put with progress display
-- **Modular**: Built on [gocmd2](https://github.com/Necromancer-Labs/gocmd2)
-
-### Protocol
-- **MessagePack over TCP**: Compact binary serialization
-- **Simple framing**: 4-byte length prefix + payload
-- **Chunked transfers**: Large files transferred in 64KB chunks
-
-## Tech Stack
-
-### Client (Go)
-| Component | Purpose | Link |
-|-----------|---------|------|
-| [gocmd2](https://github.com/Necromancer-Labs/gocmd2) | Interactive shell framework | Modular command shell with readline |
-| [cobra](https://github.com/spf13/cobra) | CLI framework | Powers `edb listen`, `edb shell` commands |
-| [msgpack](https://github.com/vmihailenco/msgpack) | Serialization | Encodes/decodes protocol messages |
-
-### Agent (C)
-| Component | Purpose | Notes |
-|-----------|---------|-------|
-| Hand-rolled MessagePack | Serialization | Minimal subset, no external deps |
-| POSIX syscalls | File operations | `opendir`, `stat`, `fopen`, etc. |
-| BSD sockets | Networking | `connect`, `accept`, `send`, `recv` |
-
-No external libraries in the agent - everything is implemented from scratch to keep the binary tiny and portable.
-
-## Current Commands
-
-| Command | Description | Status |
-|---------|-------------|--------|
-| `ls [path]` | List directory | ✅ |
-| `cd <path>` | Change directory | ✅ |
-| `pwd` | Print working directory | ✅ |
-| `cat <file>` | Print file contents | ✅ |
-| `get <remote> [local]` | Download file | ✅ |
-| `put <local> <remote>` | Upload file | ✅ |
-| `rm`, `mv`, `cp`, `mkdir`, `chmod` | File operations | ✅ |
-| `uname` | System information | ✅ |
-| `ps` | Process list (tree view) | ✅ |
-| `netstat` | Network connections (with PIDs) | ✅ |
-| `exec <command>` | Run command (no shell, raw execv) | ✅ |
-| `kill-agent` | Kill agent parent process (bind mode) | ✅ |
-| `mtd`, `firmware` | Firmware dumping | 📋 |
-| `bundle` | Artifact collection | 📋 |
-
-## Feature Phases
-
-### Phase 0: Foundation ✅
-- [x] Protocol spec (MessagePack framing)
-- [x] Agent skeleton (C) with TCP connect/listen
-- [x] Client skeleton (Go) with CLI
-- [x] Handshake and basic communication
-- [x] Navigation commands (ls, cd, pwd, cat)
-
-### Phase 1: Core ✅
-- [x] Interactive shell with readline
-- [x] File transfer (get/put) with progress
-- [x] File operations (rm, mv, cp, mkdir, chmod)
-- [x] System commands (uname, ps, netstat)
-- [x] Command execution (exec - raw execv, no shell dependency)
-- [x] Fork-on-accept (bind mode persistence)
-- [x] kill-agent command
-- [ ] Cross-compilation for ARM, MIPS
-
-### Phase 2: Firmware & Artifacts 📋
-- [ ] Firmware dumping (MTD, UBI, block devices)
-- [ ] Artifact bundles with profiles
-- [ ] Hash manifest generation
-
-### Phase 3: Polish 📋
-- [ ] Serial transport (UART)
-- [ ] Tab completion
-- [ ] Hex viewer
-- [ ] Progress bars for large transfers
 
 ## Building
 
 ### Client (Go)
 
 ```bash
-cd client
-go build -o edb .
+cd client && go build -o edb .
 ```
 
 ### Agent (C)
 
 ```bash
 cd agent
-make
+make              # Native debug build
+make release      # Native release build
+make arm          # Cross-compile for ARM
+make mipsel       # Cross-compile for MIPS little-endian
+make all-arch     # Build all architectures
 ```
 
-For cross-compilation (requires appropriate toolchain):
-```bash
-make CROSS=arm-linux-gnueabihf-
-make CROSS=mipsel-linux-gnu-
-```
+Cross-compilation requires buildroot toolchains. Run `./scripts/build-toolchains.sh` first (one-time, ~30 min per arch).
 
-## Usage
+### Supported Architectures
 
-### Listen Mode (Recommended)
+| Binary | Compatibility | Typical Devices |
+|--------|---------------|-----------------|
+| `edb-agent-arm` | ARMv5+ (v5, v6, v7, v8 32-bit) | Raspberry Pi, routers, IoT |
+| `edb-agent-arm64` | AArch64 | Modern ARM systems |
+| `edb-agent-mips` | MIPS32 big-endian | Broadcom/Atheros routers |
+| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers |
 
-```bash
-# On your workstation - start listening
-./edb listen -p 1337
+All binaries are statically linked (~50-180KB) with no runtime dependencies.
 
-# On the device - connect back
-./edb-agent -c 192.168.1.100:1337
-```
+## Design
 
-### Connect Mode
-
-```bash
-# On the device - start listening
-./edb-agent -l 1337
-
-# On your workstation - connect to it
-./edb shell 192.168.1.50:1337
-```
-
-## Getting the Agent onto a Device
-
-Common bootstrap scenarios:
-
-**Via UART/Serial Console:**
-```bash
-cd /tmp
-wget http://192.168.1.100:8080/edb-agent-arm
-chmod +x edb-agent-arm
-./edb-agent-arm -c 192.168.1.100:1337
-or
-./edb-agent-arm -l 1337
-```
-
-**Via existing SSH/Telnet:**
-```bash
-tftp -g -r edb-agent-mips 192.168.1.100 8080
-chmod +x edb-agent-mips
-./edb-agent-arm -c 192.168.1.100:1337
-or
-./edb-agent-arm -l 1337
-```
+- **Agent (C)**: Tiny static binary. No external dependencies. All commands implemented natively — no reliance on busybox or target shell.
+- **Client (Go)**: Interactive readline shell with history.
+- **Protocol**: MessagePack over TCP with length-prefixed framing.
 
 ## License
 
