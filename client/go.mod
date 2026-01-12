@@ -3,12 +3,10 @@ module github.com/Necromancer-Labs/embbridge/client
 go 1.24.1
 
 require (
-	github.com/Necromancerlabs/gocmd2 v0.0.0
+	github.com/Necromancerlabs/gocmd2 v0.1.0
 	github.com/spf13/cobra v1.9.1
 	github.com/vmihailenco/msgpack/v5 v5.4.1
 )
-
-replace github.com/Necromancerlabs/gocmd2 => /home/arete/src/gocmd2
 
 require (
 	github.com/chzyer/readline v1.5.1 // indirect

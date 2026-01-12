@@ -1,3 +1,5 @@
+github.com/Necromancerlabs/gocmd2 v0.1.0 h1:B8+uOvgL6Z/kOSNm9+gZozy4ynQKKfjydazglz9Dmis=
+github.com/Necromancerlabs/gocmd2 v0.1.0/go.mod h1:Gf9ApOVFL8RfEFet6HgfC8NawtK3Hty30MUx2lVrKuo=
 github.com/chzyer/logex v1.2.1 h1:XHDu3E6q+gdHgsdTPH6ImJMIp436vR6MPtH8gP05QzM=
 github.com/chzyer/logex v1.2.1/go.mod h1:JLbx6lG2kDbNRFnfkgvh4eRJRPX1QCoOIWomwysCBrQ=
 github.com/chzyer/readline v1.5.1 h1:upd/6fQk4src78LMRzh5vItIt361/o4uq553V8B5sGI=
