@@ -11,7 +11,7 @@
   <br>
   <a href="https://github.com/Necromancer-Labs"><img src="https://img.shields.io/badge/GitHub-Necromancer--Labs-8A2BE2?style=for-the-badge&labelColor=374151&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://img.shields.io/badge/Shell-gocmd2-8A2BE2?style=for-the-badge&labelColor=374151&logo=go&logoColor=white" alt="gocmd2"></a>
-  <a href="docs/"><img src="https://img.shields.io/badge/Docs-Read-0ea5e9?style=for-the-badge&labelColor=374151" alt="Docs"></a>
+  <a href="https://necromancer-labs.github.io/embbridge/"><img src="https://img.shields.io/badge/Docs-Read-0ea5e9?style=for-the-badge&labelColor=374151" alt="Docs"></a>
 </p>
 
 **Embedded Debug Bridge** — adb, but for embedded systems.
