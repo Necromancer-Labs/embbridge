@@ -80,7 +80,7 @@ All commands from client to agent use this format:
 ```
 
 - `id`: Request ID, used to match responses. Monotonically increasing.
-- `cmd`: Command name ("ls", "cat", "get", "put")
+- `cmd`: Command name ("ls", "cat", "pull", "push")
 - `args`: Command-specific arguments (can be an empty map)
 
 ### Response (agent → client)
@@ -227,12 +227,12 @@ Initial response indicates chunked transfer, followed by `data` messages.
 }
 ```
 
-### get - Download File
+### pull - Download File
 
 **Request:**
 ```
 {
-  "cmd": "get",
+  "cmd": "pull",
   "args": {
     "path": "/etc/passwd"
   }
@@ -242,12 +242,12 @@ Initial response indicates chunked transfer, followed by `data` messages.
 **Response:**
 Chunked transfer using `data` messages.
 
-### put - Upload File
+### push - Upload File
 
 **Request:**
 ```
 {
-  "cmd": "put",
+  "cmd": "push",
   "args": {
     "path": "/tmp/file.txt",
     "size": 1234,
