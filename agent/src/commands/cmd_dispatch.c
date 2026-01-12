@@ -22,8 +22,9 @@ static const cmd_entry_t cmd_table[] = {
     { "cat",      CMD_CAT },
     { "pwd",      CMD_PWD },
     { "cd",       CMD_CD },
-    { "get",      CMD_GET },
-    { "put",      CMD_PUT },
+    { "realpath", CMD_REALPATH },
+    { "pull",     CMD_PULL },
+    { "push",     CMD_PUSH },
     { "exec",     CMD_EXEC },
     { "mkdir",    CMD_MKDIR },
     { "rm",       CMD_RM },
@@ -33,12 +34,18 @@ static const cmd_entry_t cmd_table[] = {
     { "touch",    CMD_TOUCH },
     { "uname",    CMD_UNAME },
     { "ps",       CMD_PS },
-    { "netstat",  CMD_NETSTAT },
+    { "ss",       CMD_NETSTAT },
     { "env",      CMD_ENV },
     { "mtd",      CMD_MTD },
     { "firmware", CMD_FIRMWARE },
     { "hexdump",    CMD_HEXDUMP },
     { "kill-agent", CMD_KILL_AGENT },
+    { "reboot",     CMD_REBOOT },
+    { "whoami",     CMD_WHOAMI },
+    { "dmesg",      CMD_DMESG },
+    { "strings",    CMD_STRINGS },
+    { "cpuinfo",    CMD_CPUINFO },
+    { "mtd",        CMD_MTD },
     { NULL,         CMD_UNKNOWN },
 };
 
@@ -65,14 +72,15 @@ int cmd_handle(conn_t *conn, uint32_t id, cmd_type_t cmd,
 {
     switch (cmd) {
         /* Basic commands (basic_commands.c) */
-        case CMD_LS:      return cmd_ls(conn, id, args, args_len);
-        case CMD_CAT:     return cmd_cat(conn, id, args, args_len);
-        case CMD_PWD:     return cmd_pwd(conn, id, args, args_len);
-        case CMD_CD:      return cmd_cd(conn, id, args, args_len);
+        case CMD_LS:       return cmd_ls(conn, id, args, args_len);
+        case CMD_CAT:      return cmd_cat(conn, id, args, args_len);
+        case CMD_PWD:      return cmd_pwd(conn, id, args, args_len);
+        case CMD_CD:       return cmd_cd(conn, id, args, args_len);
+        case CMD_REALPATH: return cmd_realpath(conn, id, args, args_len);
 
         /* File transfer (file_transfer.c) */
-        case CMD_GET:     return cmd_get(conn, id, args, args_len);
-        case CMD_PUT:     return cmd_put(conn, id, args, args_len);
+        case CMD_PULL:    return cmd_pull(conn, id, args, args_len);
+        case CMD_PUSH:    return cmd_push(conn, id, args, args_len);
 
         /* File operations (file_operations.c) */
         case CMD_RM:      return cmd_rm(conn, id, args, args_len);
@@ -88,10 +96,15 @@ int cmd_handle(conn_t *conn, uint32_t id, cmd_type_t cmd,
         case CMD_EXEC:       return cmd_exec(conn, id, args, args_len);
         case CMD_NETSTAT:    return cmd_netstat(conn, id, args, args_len);
         case CMD_KILL_AGENT: return cmd_kill_agent(conn, id, args, args_len);
+        case CMD_REBOOT:     return cmd_reboot(conn, id, args, args_len);
+        case CMD_WHOAMI:     return cmd_whoami(conn, id, args, args_len);
+        case CMD_DMESG:      return cmd_dmesg(conn, id, args, args_len);
+        case CMD_STRINGS:    return cmd_strings(conn, id, args, args_len);
+        case CMD_CPUINFO:    return cmd_cpuinfo(conn, id, args, args_len);
+        case CMD_MTD:        return cmd_mtd(conn, id, args, args_len);
 
         /* Unimplemented commands */
         case CMD_ENV:
-        case CMD_MTD:
         case CMD_FIRMWARE:
         case CMD_HEXDUMP:
         case CMD_UNKNOWN:

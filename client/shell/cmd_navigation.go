@@ -2,7 +2,7 @@
  * embbridge - Embedded Debug Bridge
  * https://github.com/Necromancer-Labs/embbridge
  *
- * Navigation commands: ls, cd, pwd, cat
+ * Navigation commands: ls, cd, pwd, cat, realpath
  */
 
 package shell
@@ -145,5 +145,22 @@ func (m *EDBModule) doCat(path string) {
 		if len(content) > 0 && content[len(content)-1] != '\n' {
 			fmt.Println()
 		}
+	}
+}
+
+func (m *EDBModule) doRealpath(path string) {
+	resp, err := m.proto.Realpath(path)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if resolvedPath, ok := resp.Data["path"].(string); ok {
+		fmt.Println(resolvedPath)
 	}
 }

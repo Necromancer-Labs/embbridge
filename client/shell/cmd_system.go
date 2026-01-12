@@ -2,7 +2,7 @@
  * embbridge - Embedded Debug Bridge
  * https://github.com/Necromancer-Labs/embbridge
  *
- * System commands: uname, ps, netstat, exec
+ * System commands: uname, ps, ss, exec
  */
 
 package shell
@@ -188,8 +188,8 @@ func (m *EDBModule) printProcessNodeWithBranch(processes map[int]*processInfo, c
 	}
 }
 
-func (m *EDBModule) doNetstat() {
-	resp, err := m.proto.Netstat()
+func (m *EDBModule) doSs() {
+	resp, err := m.proto.Ss()
 	if err != nil {
 		fmt.Printf("Error: %v\n", err)
 		return
@@ -281,4 +281,107 @@ func (m *EDBModule) doKillAgent() {
 
 	killedPid := int(toInt64(resp.Data["killed_pid"]))
 	fmt.Printf("Agent parent process (pid %d) killed\n", killedPid)
+}
+
+func (m *EDBModule) doReboot() {
+	resp, err := m.proto.Reboot()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	fmt.Println("Device is rebooting...")
+}
+
+func (m *EDBModule) doWhoami() {
+	resp, err := m.proto.Whoami()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	user, _ := resp.Data["user"].(string)
+	uid := int(toInt64(resp.Data["uid"]))
+	gid := int(toInt64(resp.Data["gid"]))
+
+	fmt.Printf("%s (uid=%d, gid=%d)\n", user, uid, gid)
+}
+
+func (m *EDBModule) doDmesg() {
+	resp, err := m.proto.Dmesg()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if log, ok := resp.Data["log"].([]byte); ok {
+		fmt.Print(string(log))
+	}
+}
+
+func (m *EDBModule) doStrings(path string) {
+	resp, err := m.proto.Strings(path, 4) // default min_len = 4
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if content, ok := resp.Data["content"].([]byte); ok {
+		fmt.Print(string(content))
+	}
+}
+
+func (m *EDBModule) doCpuinfo() {
+	resp, err := m.proto.Cpuinfo()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if content, ok := resp.Data["content"].([]byte); ok {
+		fmt.Print(string(content))
+	}
+}
+
+func (m *EDBModule) doMtd() {
+	resp, err := m.proto.Mtd()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if content, ok := resp.Data["content"].([]byte); ok {
+		fmt.Print(string(content))
+	}
+	fmt.Println("\nTip: Use 'pull /dev/mtdX' to download a partition")
 }

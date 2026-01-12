@@ -260,6 +260,15 @@ func (p *Protocol) Cd(path string) (*Response, error) {
 	return p.RecvResponse()
 }
 
+// Realpath resolves a path to its canonical absolute form
+func (p *Protocol) Realpath(path string) (*Response, error) {
+	args := map[string]interface{}{"path": path}
+	if _, err := p.SendRequest("realpath", args); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
 // Cat reads a file
 func (p *Protocol) Cat(path string) (*Response, error) {
 	args := map[string]interface{}{"path": path}
@@ -285,9 +294,9 @@ func (p *Protocol) Ps() (*Response, error) {
 	return p.RecvResponse()
 }
 
-// Netstat gets network connections
-func (p *Protocol) Netstat() (*Response, error) {
-	if _, err := p.SendRequest("netstat", nil); err != nil {
+// Ss gets network connections (socket statistics)
+func (p *Protocol) Ss() (*Response, error) {
+	if _, err := p.SendRequest("ss", nil); err != nil {
 		return nil, err
 	}
 	return p.RecvResponse()
@@ -305,6 +314,58 @@ func (p *Protocol) KillAgent() (*Response, error) {
 func (p *Protocol) Exec(command string) (*Response, error) {
 	args := map[string]interface{}{"command": command}
 	if _, err := p.SendRequest("exec", args); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Reboot reboots the device
+func (p *Protocol) Reboot() (*Response, error) {
+	if _, err := p.SendRequest("reboot", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Whoami gets the current user
+func (p *Protocol) Whoami() (*Response, error) {
+	if _, err := p.SendRequest("whoami", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Dmesg gets kernel log messages
+func (p *Protocol) Dmesg() (*Response, error) {
+	if _, err := p.SendRequest("dmesg", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Strings extracts printable strings from a file
+func (p *Protocol) Strings(path string, minLen int) (*Response, error) {
+	args := map[string]interface{}{"path": path}
+	if minLen > 0 {
+		args["min_len"] = minLen
+	}
+	if _, err := p.SendRequest("strings", args); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Cpuinfo gets CPU information
+func (p *Protocol) Cpuinfo() (*Response, error) {
+	if _, err := p.SendRequest("cpuinfo", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// Mtd lists MTD partitions
+func (p *Protocol) Mtd() (*Response, error) {
+	if _, err := p.SendRequest("mtd", nil); err != nil {
 		return nil, err
 	}
 	return p.RecvResponse()
@@ -372,13 +433,13 @@ type DataMsg struct {
 type TransferProgress func(transferred, total int64)
 
 // =============================================================================
-// Get (Download) with Progress
+// Pull (Download) with Progress
 // =============================================================================
 
-// Get downloads a file from the device with progress reporting
-func (p *Protocol) Get(remotePath string, progress TransferProgress) ([]byte, int64, uint32, error) {
+// Pull downloads a file from the device with progress reporting
+func (p *Protocol) Pull(remotePath string, progress TransferProgress) ([]byte, int64, uint32, error) {
 	args := map[string]interface{}{"path": remotePath}
-	if _, err := p.SendRequest("get", args); err != nil {
+	if _, err := p.SendRequest("pull", args); err != nil {
 		return nil, 0, 0, err
 	}
 
@@ -426,7 +487,7 @@ func (p *Protocol) Get(remotePath string, progress TransferProgress) ([]byte, in
 }
 
 // =============================================================================
-// Put (Upload) with Progress
+// Push (Upload) with Progress
 // =============================================================================
 
 // SendData sends a data chunk
@@ -441,14 +502,14 @@ func (p *Protocol) SendData(id, seq uint32, data []byte, done bool) error {
 	return p.Send(msg)
 }
 
-// Put uploads a file to the device with progress reporting
-func (p *Protocol) Put(remotePath string, data []byte, mode uint32, progress TransferProgress) error {
+// Push uploads a file to the device with progress reporting
+func (p *Protocol) Push(remotePath string, data []byte, mode uint32, progress TransferProgress) error {
 	args := map[string]interface{}{
 		"path": remotePath,
 		"size": uint64(len(data)),
 		"mode": uint64(mode),
 	}
-	id, err := p.SendRequest("put", args)
+	id, err := p.SendRequest("push", args)
 	if err != nil {
 		return err
 	}
