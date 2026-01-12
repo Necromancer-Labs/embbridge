@@ -210,9 +210,58 @@ int cmd_cd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
 }
 
 /* =============================================================================
+ * Command: realpath
+ *
+ * Resolve a path to its canonical absolute form.
+ * Resolves symlinks, removes . and .. components.
+ * ============================================================================= */
+
+int cmd_realpath(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
+{
+    char *arg_path = parse_string_arg(args, args_len, "path");
+    if (!arg_path) {
+        return proto_send_error(conn, id, "missing path argument");
+    }
+
+    /* Resolve relative to cwd */
+    char *resolved = path_resolve(conn->cwd, arg_path);
+    free(arg_path);
+
+    if (!resolved) {
+        return proto_send_error(conn, id, "out of memory");
+    }
+
+    /* Get the canonical path */
+    char realpath_buf[EDB_PATH_MAX];
+    if (realpath(resolved, realpath_buf) == NULL) {
+        int err = errno;
+        free(resolved);
+        return proto_send_error(conn, id, strerror(err));
+    }
+    free(resolved);
+
+    LOG("realpath: %s", realpath_buf);
+
+    /* Build response */
+    resp_builder_t rb;
+    if (rb_init(&rb, 256) < 0) {
+        return proto_send_error(conn, id, "out of memory");
+    }
+
+    rb_map(&rb, 1);
+    rb_str(&rb, "path");
+    rb_str(&rb, realpath_buf);
+
+    int ret = proto_send_response(conn, id, true, rb.buf, rb.len, NULL);
+    rb_free(&rb);
+    return ret;
+}
+
+/* =============================================================================
  * Command: cat
  *
  * Read and return file contents.
+ * Handles both regular files and virtual files (e.g. /proc, /sys).
  * ============================================================================= */
 
 int cmd_cat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
@@ -239,45 +288,78 @@ int cmd_cat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
     }
     free(resolved);
 
-    /* Get file size */
-    if (fseek(f, 0, SEEK_END) < 0) {
-        fclose(f);
-        return proto_send_error(conn, id, strerror(errno));
-    }
-    long file_size = ftell(f);
-    if (file_size < 0) {
-        fclose(f);
-        return proto_send_error(conn, id, strerror(errno));
-    }
-    if (fseek(f, 0, SEEK_SET) < 0) {
-        fclose(f);
-        return proto_send_error(conn, id, strerror(errno));
+    /*
+     * Try to get file size via seeking. This works for regular files
+     * but fails for virtual files (e.g. /proc, /sys) which have no size.
+     */
+    long file_size = -1;
+    if (fseek(f, 0, SEEK_END) == 0) {
+        file_size = ftell(f);
+        if (file_size >= 0) {
+            fseek(f, 0, SEEK_SET);
+        }
     }
 
-    /* Limit file size to prevent OOM */
-    if (file_size > EDB_MAX_MSG_SIZE - 1024) {
-        fclose(f);
-        return proto_send_error(conn, id, "file too large");
-    }
+    uint8_t *content = NULL;
+    size_t content_len = 0;
 
-    /* Read file contents */
-    uint8_t *content = malloc((size_t)file_size);
-    if (!content) {
-        fclose(f);
-        return proto_send_error(conn, id, "out of memory");
-    }
+    if (file_size > 0) {
+        /* Regular file with known size */
+        if (file_size > EDB_MAX_MSG_SIZE - 1024) {
+            fclose(f);
+            return proto_send_error(conn, id, "file too large");
+        }
 
-    size_t read_len = fread(content, 1, (size_t)file_size, f);
+        content = malloc((size_t)file_size);
+        if (!content) {
+            fclose(f);
+            return proto_send_error(conn, id, "out of memory");
+        }
+
+        content_len = fread(content, 1, (size_t)file_size, f);
+    } else {
+        /*
+         * Virtual file or empty file - read in chunks until EOF.
+         * This handles /proc, /sys, and other special files.
+         */
+        size_t capacity = 4096;
+        content = malloc(capacity);
+        if (!content) {
+            fclose(f);
+            return proto_send_error(conn, id, "out of memory");
+        }
+
+        content_len = 0;
+        size_t chunk;
+        while ((chunk = fread(content + content_len, 1, capacity - content_len, f)) > 0) {
+            content_len += chunk;
+
+            /* Need more space? */
+            if (content_len >= capacity) {
+                if (capacity >= EDB_MAX_MSG_SIZE - 1024) {
+                    free(content);
+                    fclose(f);
+                    return proto_send_error(conn, id, "file too large");
+                }
+                capacity *= 2;
+                if (capacity > EDB_MAX_MSG_SIZE - 1024) {
+                    capacity = EDB_MAX_MSG_SIZE - 1024;
+                }
+                uint8_t *new_content = realloc(content, capacity);
+                if (!new_content) {
+                    free(content);
+                    fclose(f);
+                    return proto_send_error(conn, id, "out of memory");
+                }
+                content = new_content;
+            }
+        }
+    }
     fclose(f);
-
-    if (read_len != (size_t)file_size) {
-        free(content);
-        return proto_send_error(conn, id, "read error");
-    }
 
     /* Build response: { "content": <binary>, "size": <len> } */
     resp_builder_t rb;
-    if (rb_init(&rb, (size_t)file_size + 64) < 0) {
+    if (rb_init(&rb, content_len + 64) < 0) {
         free(content);
         return proto_send_error(conn, id, "out of memory");
     }
@@ -285,22 +367,11 @@ int cmd_cat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
     rb_map(&rb, 2);
 
     rb_str(&rb, "content");
-    /* Write as binary */
-    if (file_size <= 0xff) {
-        rb_u8(&rb, 0xc4);  /* bin8 */
-        rb_u8(&rb, (uint8_t)file_size);
-    } else if (file_size <= 0xffff) {
-        rb_u8(&rb, 0xc5);  /* bin16 */
-        rb_u16be(&rb, (uint16_t)file_size);
-    } else {
-        rb_u8(&rb, 0xc6);  /* bin32 */
-        rb_u32be(&rb, (uint32_t)file_size);
-    }
-    rb_raw(&rb, content, (size_t)file_size);
+    rb_bin(&rb, content, content_len);
     free(content);
 
     rb_str(&rb, "size");
-    rb_uint(&rb, (uint64_t)file_size);
+    rb_uint(&rb, (uint64_t)content_len);
 
     int ret = proto_send_response(conn, id, true, rb.buf, rb.len, NULL);
     rb_free(&rb);

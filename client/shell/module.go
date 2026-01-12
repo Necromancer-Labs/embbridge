@@ -54,7 +54,7 @@ func (m *EDBModule) Initialize(s shellapi.ShellAPI) {
 }
 
 func (m *EDBModule) updatePrompt() {
-	m.shell.SetPrompt(fmt.Sprintf("edb[%s]>", m.cwd))
+	m.shell.SetPrompt(fmt.Sprintf("edb[%s]#", m.cwd))
 }
 
 // GetCommands returns all commands provided by this module
@@ -82,12 +82,9 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 	// cd command
 	cdCmd := &cobra.Command{
 		Use:   "cd <path>",
-		Short: "Change directory (absolute path required)",
+		Short: "Change directory (supports relative paths like .. and .)",
 		Args:  cobra.ExactArgs(1),
 		Run: func(cmd *cobra.Command, args []string) {
-			if !requireAbsolutePath(args[0], "path") {
-				return
-			}
 			m.doCd(args[0])
 		},
 	}
@@ -117,6 +114,17 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 	}
 	commands = append(commands, catCmd)
 
+	// realpath command
+	realpathCmd := &cobra.Command{
+		Use:   "realpath <path>",
+		Short: "Resolve path to canonical absolute form",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doRealpath(args[0])
+		},
+	}
+	commands = append(commands, realpathCmd)
+
 	// ==========================================================================
 	// System commands
 	// ==========================================================================
@@ -141,15 +149,15 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 	}
 	commands = append(commands, psCmd)
 
-	// netstat command
-	netstatCmd := &cobra.Command{
-		Use:   "netstat",
+	// ss command (socket statistics)
+	ssCmd := &cobra.Command{
+		Use:   "ss",
 		Short: "List network connections (TCP/UDP with process info)",
 		Run: func(cmd *cobra.Command, args []string) {
-			m.doNetstat()
+			m.doSs()
 		},
 	}
-	commands = append(commands, netstatCmd)
+	commands = append(commands, ssCmd)
 
 	// exec command
 	execCmd := &cobra.Command{
@@ -173,14 +181,78 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 	}
 	commands = append(commands, killAgentCmd)
 
+	// reboot command
+	rebootCmd := &cobra.Command{
+		Use:   "reboot",
+		Short: "Reboot the device",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doReboot()
+		},
+	}
+	commands = append(commands, rebootCmd)
+
+	// whoami command
+	whoamiCmd := &cobra.Command{
+		Use:   "whoami",
+		Short: "Show current user (uid/gid)",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doWhoami()
+		},
+	}
+	commands = append(commands, whoamiCmd)
+
+	// dmesg command
+	dmesgCmd := &cobra.Command{
+		Use:   "dmesg",
+		Short: "Show kernel log messages",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doDmesg()
+		},
+	}
+	commands = append(commands, dmesgCmd)
+
+	// strings command
+	stringsCmd := &cobra.Command{
+		Use:   "strings <file>",
+		Short: "Extract printable strings from a file",
+		Args:  cobra.ExactArgs(1),
+		Run: func(cmd *cobra.Command, args []string) {
+			if !requireAbsolutePath(args[0], "file") {
+				return
+			}
+			m.doStrings(args[0])
+		},
+	}
+	commands = append(commands, stringsCmd)
+
+	// cpuinfo command
+	cpuinfoCmd := &cobra.Command{
+		Use:   "cpuinfo",
+		Short: "Show CPU information",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doCpuinfo()
+		},
+	}
+	commands = append(commands, cpuinfoCmd)
+
+	// mtd command
+	mtdCmd := &cobra.Command{
+		Use:   "mtd",
+		Short: "List MTD (flash) partitions",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doMtd()
+		},
+	}
+	commands = append(commands, mtdCmd)
+
 	// ==========================================================================
 	// File transfer commands
 	// ==========================================================================
 
-	// get command (download)
-	getCmd := &cobra.Command{
-		Use:   "get <remote-path> [local-path]",
-		Short: "Download a file from the device (absolute remote path required)",
+	// pull command (download from device)
+	pullCmd := &cobra.Command{
+		Use:   "pull <remote-file> [local-path]",
+		Short: "Download a file from the device to your local machine",
 		Args:  cobra.RangeArgs(1, 2),
 		Run: func(cmd *cobra.Command, args []string) {
 			remotePath := args[0]
@@ -194,12 +266,12 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 			m.doGet(remotePath, localPath)
 		},
 	}
-	commands = append(commands, getCmd)
+	commands = append(commands, pullCmd)
 
-	// put command (upload)
-	putCmd := &cobra.Command{
-		Use:   "put <local-path> <remote-path>",
-		Short: "Upload a file to the device (absolute remote path required)",
+	// push command (upload to device)
+	pushCmd := &cobra.Command{
+		Use:   "push <local-file> <remote-path>",
+		Short: "Upload a file from your local machine to the device",
 		Args:  cobra.ExactArgs(2),
 		Run: func(cmd *cobra.Command, args []string) {
 			if !requireAbsolutePath(args[1], "remote-path") {
@@ -208,7 +280,7 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 			m.doPut(args[0], args[1])
 		},
 	}
-	commands = append(commands, putCmd)
+	commands = append(commands, pushCmd)
 
 	// ==========================================================================
 	// File operation commands
