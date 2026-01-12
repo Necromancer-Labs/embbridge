@@ -2,8 +2,9 @@
  * embbridge - Embedded Debug Bridge
  * https://github.com/Necromancer-Labs/embbridge
  *
- * File transfer commands: get (download), put (upload)
+ * File transfer commands: pull (download), push (upload)
  * These handle chunked file transfers for large files.
+ * Includes support for MTD devices (/dev/mtd*) common on embedded systems.
  */
 
 #define _POSIX_C_SOURCE 200809L
@@ -12,16 +13,115 @@
 #include <stdlib.h>
 #include <string.h>
 #include <sys/stat.h>
+#include <sys/ioctl.h>
+#include <fcntl.h>
+#include <unistd.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "edb.h"
 #include "commands.h"
 
+/* MTD ioctl for getting device info - from <mtd/mtd-user.h> */
+#define MEMGETINFO _IOR('M', 1, struct mtd_info_user)
+
+struct mtd_info_user {
+    uint8_t  type;
+    uint32_t flags;
+    uint32_t size;          /* Total size of the MTD */
+    uint32_t erasesize;
+    uint32_t writesize;
+    uint32_t oobsize;
+    uint64_t padding;
+};
+
+/*
+ * Get MTD device size via ioctl.
+ * Returns size in bytes, or 0 on failure.
+ */
+static uint64_t get_mtd_size_ioctl(const char *path)
+{
+    int fd = open(path, O_RDONLY);
+    if (fd < 0) return 0;
+
+    struct mtd_info_user info;
+    memset(&info, 0, sizeof(info));
+
+    if (ioctl(fd, MEMGETINFO, &info) < 0) {
+        close(fd);
+        return 0;
+    }
+
+    close(fd);
+    return (uint64_t)info.size;
+}
+
+/*
+ * Get MTD device size from /proc/mtd.
+ * Path should be like "/dev/mtd0" or "/dev/mtdblock0".
+ * Returns size in bytes, or 0 if not found.
+ */
+static uint64_t get_mtd_size_proc(const char *path)
+{
+    /* Extract MTD number from path */
+    const char *p = path;
+    while (*p && !isdigit(*p)) p++;
+    if (!*p) return 0;
+
+    int mtd_num = atoi(p);
+
+    FILE *f = fopen("/proc/mtd", "r");
+    if (!f) return 0;
+
+    char line[256];
+    uint64_t size = 0;
+
+    /* Skip header line */
+    if (!fgets(line, sizeof(line), f)) {
+        fclose(f);
+        return 0;
+    }
+
+    /* Parse entries: "mtd0: 00040000 00010000 \"name\"" */
+    while (fgets(line, sizeof(line), f)) {
+        int num;
+        unsigned int hex_size;
+        if (sscanf(line, "mtd%d: %x", &num, &hex_size) == 2) {
+            if (num == mtd_num) {
+                size = (uint64_t)hex_size;
+                break;
+            }
+        }
+    }
+
+    fclose(f);
+    return size;
+}
+
+/*
+ * Check if path is an MTD device and get its size.
+ * Returns size > 0 if MTD device, 0 otherwise.
+ */
+static uint64_t get_mtd_size(const char *path)
+{
+    /* Check if path looks like /dev/mtd* or /dev/mtdblock* */
+    if (strncmp(path, "/dev/mtd", 8) != 0) {
+        return 0;
+    }
+
+    /* Try ioctl first (more reliable) */
+    uint64_t size = get_mtd_size_ioctl(path);
+    if (size > 0) return size;
+
+    /* Fall back to /proc/mtd */
+    return get_mtd_size_proc(path);
+}
+
 /* =============================================================================
- * Command: get (download file from device)
+ * Command: pull (download file from device)
  *
  * Protocol:
- *   1. Client sends: { cmd: "get", args: { path: "/path/to/file" } }
+ *   1. Client sends: { cmd: "pull", args: { path: "/path/to/file" } }
  *   2. Agent sends:  { ok: true, data: { size: N, mode: M } }
  *   3. Agent sends:  { type: "data", seq: 0, data: <chunk>, done: false }
  *   4. Agent sends:  { type: "data", seq: 1, data: <chunk>, done: false }
@@ -31,7 +131,7 @@
  * Files are sent in 64KB chunks to avoid memory issues on constrained devices.
  * ============================================================================= */
 
-int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
+int cmd_pull(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
 {
     char *arg_path = parse_string_arg(args, args_len, "path");
     if (!arg_path) {
@@ -62,17 +162,42 @@ int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
         free(resolved);
         return proto_send_error(conn, id, strerror(err));
     }
-    free(resolved);
 
     if (S_ISDIR(st.st_mode)) {
         fclose(f);
+        free(resolved);
         return proto_send_error(conn, id, "is a directory");
     }
 
+    /*
+     * Get file size. For regular files, use st_size.
+     * For MTD devices, st_size is 0, so we need to query the device.
+     */
     uint64_t file_size = (uint64_t)st.st_size;
+
+    if (file_size == 0) {
+        /* Check if this is an MTD device */
+        uint64_t mtd_size = get_mtd_size(resolved);
+        if (mtd_size > 0) {
+            file_size = mtd_size;
+            LOG("pull: detected MTD device, size=%lu", (unsigned long)file_size);
+        }
+    }
+
+    free(resolved);
+
+    /*
+     * For device files where we couldn't determine the size, return an error.
+     * Regular empty files (size 0) are fine.
+     */
+    if (file_size == 0 && !S_ISREG(st.st_mode)) {
+        fclose(f);
+        return proto_send_error(conn, id, "cannot determine device size");
+    }
+
     uint32_t file_mode = (uint32_t)(st.st_mode & 0777);
 
-    LOG("get: sending file, size=%lu, mode=%o", (unsigned long)file_size, file_mode);
+    LOG("pull: sending file, size=%lu, mode=%o", (unsigned long)file_size, file_mode);
 
     /* Send initial response with file info */
     resp_builder_t rb;
@@ -115,7 +240,7 @@ int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
         total_sent += n;
         bool done = (total_sent >= file_size);
 
-        LOG("get: sending chunk seq=%u, len=%zu, done=%d", seq, n, done);
+        LOG("pull: sending chunk seq=%u, len=%zu, done=%d", seq, n, done);
 
         if (proto_send_data(conn, id, seq, chunk, n, done) < 0) {
             fclose(f);
@@ -126,15 +251,15 @@ int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
     }
 
     fclose(f);
-    LOG("get: transfer complete, sent %zu bytes in %u chunks", total_sent, seq);
+    LOG("pull: transfer complete, sent %zu bytes in %u chunks", total_sent, seq);
     return 0;
 }
 
 /* =============================================================================
- * Command: put (upload file to device)
+ * Command: push (upload file to device)
  *
  * Protocol:
- *   1. Client sends: { cmd: "put", args: { path: "/path", size: N, mode: M } }
+ *   1. Client sends: { cmd: "push", args: { path: "/path", size: N, mode: M } }
  *   2. Agent sends:  { ok: true, data: {} }
  *   3. Client sends: { type: "data", seq: 0, data: <chunk>, done: false }
  *   4. Client sends: { type: "data", seq: 1, data: <chunk>, done: false }
@@ -144,7 +269,7 @@ int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
  * The agent creates/overwrites the file and writes each chunk as it arrives.
  * ============================================================================= */
 
-int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
+int cmd_push(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
 {
     char *arg_path = parse_string_arg(args, args_len, "path");
     if (!arg_path) {
@@ -165,7 +290,7 @@ int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
         return proto_send_error(conn, id, "out of memory");
     }
 
-    LOG("put: receiving file %s, size=%lu, mode=%o",
+    LOG("push: receiving file %s, size=%lu, mode=%o",
         resolved, (unsigned long)file_size, (unsigned int)file_mode);
 
     /* Open file for writing */
@@ -206,7 +331,7 @@ int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
         size_t msg_len;
 
         if (proto_recv(conn, &msg, &msg_len) < 0) {
-            LOG("put: failed to receive data chunk");
+            LOG("push: failed to receive data chunk");
             fclose(f);
             free(resolved);
             return -1;
@@ -300,14 +425,14 @@ int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
 
         if (chunk_data && chunk_len > 0) {
             if (fwrite(chunk_data, 1, chunk_len, f) != chunk_len) {
-                LOG("put: write error");
+                LOG("push: write error");
                 free(msg);
                 fclose(f);
                 free(resolved);
                 return proto_send_error(conn, id, "write error");
             }
             total_received += chunk_len;
-            LOG("put: received chunk seq=%u, len=%zu, done=%d",
+            LOG("push: received chunk seq=%u, len=%zu, done=%d",
                 expected_seq, chunk_len, done);
         }
 
@@ -318,7 +443,7 @@ int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
         continue;
 
     parse_error:
-        LOG("put: parse error in data chunk");
+        LOG("push: parse error in data chunk");
         free(msg);
         fclose(f);
         free(resolved);
@@ -328,6 +453,6 @@ int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
     fclose(f);
     free(resolved);
 
-    LOG("put: transfer complete, received %zu bytes", total_received);
+    LOG("push: transfer complete, received %zu bytes", total_received);
     return 0;
 }

@@ -45,8 +45,9 @@ typedef enum {
     CMD_CAT,
     CMD_PWD,
     CMD_CD,
-    CMD_GET,
-    CMD_PUT,
+    CMD_REALPATH,
+    CMD_PULL,
+    CMD_PUSH,
     CMD_EXEC,
     CMD_MKDIR,
     CMD_RM,
@@ -62,6 +63,11 @@ typedef enum {
     CMD_FIRMWARE,
     CMD_HEXDUMP,
     CMD_KILL_AGENT,
+    CMD_REBOOT,
+    CMD_WHOAMI,
+    CMD_DMESG,
+    CMD_STRINGS,
+    CMD_CPUINFO,
 } cmd_type_t;
 
 /* =============================================================================
@@ -197,10 +203,11 @@ int cmd_ls(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_cat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_pwd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_cd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_realpath(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 
 /* File transfer (file_transfer.c) */
-int cmd_get(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
-int cmd_put(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_pull(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_push(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 
 /* File operations (file_operations.c) */
 int cmd_rm(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
@@ -216,6 +223,12 @@ int cmd_ps(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_exec(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_netstat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_kill_agent(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_reboot(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_whoami(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_dmesg(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_strings(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_cpuinfo(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_mtd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 
 /* =============================================================================
  * Path Utilities (src/commands/helpers.c)

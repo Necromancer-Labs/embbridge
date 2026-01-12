@@ -35,11 +35,9 @@
  * MessagePack Format Constants
  * ============================================================================= */
 
-/* Format markers */
+/* Format markers (only those we actually use) */
 #define MP_FIXMAP       0x80
-#define MP_FIXARRAY     0x90
 #define MP_FIXSTR       0xa0
-#define MP_NIL          0xc0
 #define MP_FALSE        0xc2
 #define MP_TRUE         0xc3
 #define MP_BIN8         0xc4
@@ -49,15 +47,9 @@
 #define MP_UINT16       0xcd
 #define MP_UINT32       0xce
 #define MP_UINT64       0xcf
-#define MP_INT8         0xd0
-#define MP_INT16        0xd1
-#define MP_INT32        0xd2
-#define MP_INT64        0xd3
 #define MP_STR8         0xd9
 #define MP_STR16        0xda
 #define MP_STR32        0xdb
-#define MP_ARRAY16      0xdc
-#define MP_ARRAY32      0xdd
 #define MP_MAP16        0xde
 #define MP_MAP32        0xdf
 
@@ -142,12 +134,6 @@ static int mp_write_u32be(mp_writer_t *w, uint32_t val)
     return mp_write_raw(w, &be, 4);
 }
 
-/* Write nil */
-static int mp_write_nil(mp_writer_t *w)
-{
-    return mp_write_u8(w, MP_NIL);
-}
-
 /* Write boolean */
 static int mp_write_bool(mp_writer_t *w, bool val)
 {
@@ -224,20 +210,6 @@ static int mp_write_map(mp_writer_t *w, size_t count)
         return mp_write_u16be(w, (uint16_t)count);
     } else {
         if (mp_write_u8(w, MP_MAP32) < 0) return -1;
-        return mp_write_u32be(w, (uint32_t)count);
-    }
-}
-
-/* Write array header (caller must write elements after) */
-static int mp_write_array(mp_writer_t *w, size_t count)
-{
-    if (count <= 15) {
-        return mp_write_u8(w, MP_FIXARRAY | (uint8_t)count);
-    } else if (count <= 0xffff) {
-        if (mp_write_u8(w, MP_ARRAY16) < 0) return -1;
-        return mp_write_u16be(w, (uint16_t)count);
-    } else {
-        if (mp_write_u8(w, MP_ARRAY32) < 0) return -1;
         return mp_write_u32be(w, (uint32_t)count);
     }
 }

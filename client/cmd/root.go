@@ -26,10 +26,7 @@ investigation, and research.
 
 Usage:
   edb listen              Listen for agent connections (reverse mode)
-  edb shell <host:port>   Connect to agent (bind mode)
-  edb get <device> <remote> <local>
-  edb put <device> <local> <remote>
-  edb bundle <device> --profile <name>`,
+  edb shell <host:port>   Connect to agent (bind mode)`,
 	Version: Version,
 }
 
@@ -42,7 +39,4 @@ func init() {
 	// Add subcommands
 	rootCmd.AddCommand(listenCmd)
 	rootCmd.AddCommand(shellCmd)
-	rootCmd.AddCommand(execCmd)
-	rootCmd.AddCommand(getCmd)
-	rootCmd.AddCommand(putCmd)
 }
