@@ -1,5 +1,19 @@
 # embbridge
 
+<p align="center">
+  <img src="embbridge-banner.jpeg" alt="embbridge banner" width="800">
+</p>
+
+<p align="center">
+  <img src="https://img.shields.io/badge/Necromancer_Labs-Tools-8A2BE2?style=for-the-badge&labelColor=374151" alt="Necromancer Labs">
+  <img src="https://img.shields.io/badge/Focus-Embedded_Devices-8A2BE2?style=for-the-badge&labelColor=374151" alt="Focus">
+  <img src="https://img.shields.io/badge/Status-Active_Dev-22c55e?style=for-the-badge&labelColor=374151" alt="Status">
+  <br>
+  <a href="https://github.com/Necromancer-Labs"><img src="https://img.shields.io/badge/GitHub-Necromancer--Labs-8A2BE2?style=for-the-badge&labelColor=374151&logo=github&logoColor=white" alt="GitHub"></a>
+  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://img.shields.io/badge/Shell-gocmd2-8A2BE2?style=for-the-badge&labelColor=374151&logo=go&logoColor=white" alt="gocmd2"></a>
+  <a href="docs/"><img src="https://img.shields.io/badge/Docs-Read-0ea5e9?style=for-the-badge&labelColor=374151" alt="Docs"></a>
+</p>
+
 **Embedded Debug Bridge** — adb, but for embedded systems.
 
 A lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, and device forensics.
