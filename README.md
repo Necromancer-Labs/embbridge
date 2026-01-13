@@ -15,35 +15,27 @@
 </p>
 
 <p align="center">
-  <img src="demo.gif" alt="embbridge demo" width="800">
+  <em>Demo:</em> D-Link DIR-645 (MIPS32 Little-Endian aka mipsel)<br>
+  <em>Technique: <a href="https://github.com/fxc233/iot-vul/tree/main/D-Link/DIR-645">RCE PoC</a> + telnet & + wget -o /tmp/agent <ip:port>/edb-agent-mipsel</em><br>
+  <em>Purpose:</em> edb pull root filesystem (rootfs in the /dev/mtd1) for local analysis<br><br>
+  <img src="demo.gif" alt="embbridge demo" width="600">
 </p>
 
-**Embedded Debug Bridge** — adb, but for embedded systems.
+**Embedded Debug Bridge - embbridge** — like adb, but edb
 
-A lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, and device forensics.
+`edb` is a protocol and lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, device forensics, kernel debugging, and more.
 
-## The Problem
+## The Goal:
 
-Android has `adb`. It's standard, reliable, and works the same on every device. You can always `adb pull`, `adb shell`, `adb push`, etc.
+Android has `adb`. You can `adb pull`, `adb push`, `adb shell`, etc. It's standard, reliable, and works the same on every device.
 
-Embedded Linux has nothing like this. Every device is different:
-- Different shells (or none)
-- Different available utilities (busybox, toybox, UART, telnet)
-- Different file transfer options (tftp? scp? wget? none?)
-- No consistent way to collect firmware, logs, or artifacts
+Embedded systems now have `edb`. You can `edb pull`, `edb push`, `edb shell`, etc. Cross-compiled with [buildroot](https://github.com/buildroot/buildroot) to several architectures, it is also standard, reliable, and (*should*) works the same on every (*most*) devices. 
 
-You never know what you're going to get, this is frustrating. 
-
-## The Solution
-
-embbridge provides an adb-like experience for any embedded Linux system:
-- **One agent binary** — statically linked, ~50-180KB, runs anywhere
-- **Consistent interface** — same commands work on every device
-- **Self-contained** — doesn't rely on target utilities; all commands implemented natively
 
 ## Quick Start
 
-**1. Identify target architecture:**
+**1. Identify correct target architecture:**
+> Need help finding target architecture? See [architecture-reference](https://necromancer-labs.github.io/embbridge/quickstart.html#3-architecture-reference).
 ```bash
 # On target device
 cat /proc/cpuinfo
@@ -53,21 +45,21 @@ cat /proc/cpuinfo
 
 | CPU | Binary |
 |-----|--------|
-| ARM (v5, v6, v7) | `edb-agent-arm` |
+| ARMv5+ (v5, v6, v7) | `edb-agent-arm` |
 | ARM64 / AArch64 | `edb-agent-arm64` |
-| MIPS big-endian | `edb-agent-mips` |
-| MIPS little-endian | `edb-agent-mipsel` |
+| MIPS32 big-endian | `edb-agent-mips` |
+| MIPS32 little-endian | `edb-agent-mipsel` |
 
 **3. Transfer to target and run:**
+> Need help getting the binary onto the target? See [transfer techniques](https://necromancer-labs.github.io/embbridge/quickstart.html#2-transfer-agent-to-device).
+
 ```bash
 # On target
 chmod +x /tmp/edb-agent
-/tmp/edb-agent -l 1337        # listen mode
+/tmp/edb-agent -l 1337                # bind (listen and wait)
 # or
-/tmp/edb-agent -c 192.168.1.100:1337  # connect back to you
+/tmp/edb-agent -c 192.168.1.100:1337  # reverse (connect to your client)
 ```
-
-> Need help getting the binary onto the target? See [transfer techniques](https://necromancer-labs.github.io/embbridge/quickstart.html#2-transfer-agent-to-device).
 
 **4. Connect from workstation:**
 ```bash
@@ -111,7 +103,7 @@ chmod +x /tmp/edb-agent
 ./edb-agent -c 192.168.1.100:1337
 ```
 
-## Building
+## Building from source
 
 ### Client (Go)
 
@@ -119,7 +111,7 @@ chmod +x /tmp/edb-agent
 cd client && go build -o edb .
 ```
 
-### Agent (C)
+### Agent (C) - Using Buildroot's toolchains
 
 ```bash
 cd agent

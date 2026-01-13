@@ -37,6 +37,9 @@ Workstation: nc 192.168.1.50 4444 < edb-agent-arm
 
 # via tftp
 Device: tftp -g -r edb-agent-arm 192.168.1.100
+Workstation: sudo ./utftp 
+
+You can use our `ultra tftp` binary found here: https://github.com/Necromancer-Labs/utftp
 ```
 
 ## 3. Start the Agent

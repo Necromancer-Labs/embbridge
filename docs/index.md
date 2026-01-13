@@ -29,18 +29,19 @@ embbridge is a lightweight agent/client tool for interacting with embedded Linux
 |----------|-------------|
 | [Quick Start](quickstart.md) | Get running in 5 minutes |
 | [Commands](commands.md) | Complete command reference |
+| [Architecture Reference](architecture-reference.md) | Device architecture identification guide |
 | [Building](building.md) | Build from source |
 | [Protocol](protocol.md) | Wire protocol specification |
 
 ## Supported Architectures
 
-| Binary | Architecture | Typical Devices |
-|--------|--------------|-----------------|
-| `edb-agent-arm` | ARM 32-bit (ARMv5+) | Raspberry Pi, routers, IoT devices |
-| `edb-agent-arm64` | ARM 64-bit (AArch64) | Modern ARM servers and SBCs |
-| `edb-agent-mips` | MIPS32 big-endian | Broadcom/Atheros routers |
-| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers, embedded devices |
-| `edb-agent-x86_64` | x86 64-bit | Standard Linux systems, VMs |
+| Agent Build            | Architecture                 | Typical Devices / Good Examples                                                                                                                                                                                                      |
+| ---------------------- | ---------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| **`edb-agent-arm`**    | **ARM 32-bit (ARMv5/ARMv7)** | • Smart TVs (many Samsung, LG, Sony non-Android models) <br> • Older Android TVs (32-bit builds) <br> • Classic Raspberry Pi models (Pi 1 / Pi Zero) <br> • Many consumer IoT cameras (TP-Link, Wyze v2) <br> • Legacy set-top boxes |
+| **`edb-agent-arm64`**  | **ARM 64-bit (AArch64)**     | • Modern Smart TVs (Android TV / Google TV, newer Tizen/WebOS) <br> • Raspberry Pi 3/4/5 <br> • Modern Android phones/tablets <br> • ARM servers (Ampere, AWS Graviton) <br> • New NVR / IoT edge devices                            |
+| **`edb-agent-mips`**   | **MIPS32 Big-Endian**        | • Older Cisco/Juniper enterprise routers <br> • Some legacy IP phones & DSP boards <br> • Very early enterprise networking appliances                                                                                                |
+| **`edb-agent-mipsel`** | **MIPS32 Little-Endian**     | • Consumer Wi-Fi routers (e.g., **D-Link DIR-645**, Linksys WRT54GL variants) <br> • Atheros/Qualcomm-Atheros based SOHO APs <br> • Older NAS devices <br> • Many early OpenWrt hardware targets                                     |
+
 
 ## Client Binary
 
