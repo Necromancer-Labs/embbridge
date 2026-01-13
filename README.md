@@ -14,6 +14,10 @@
   <a href="https://necromancer-labs.github.io/embbridge/"><img src="https://img.shields.io/badge/Docs-Read-0ea5e9?style=for-the-badge&labelColor=374151" alt="Docs"></a>
 </p>
 
+<p align="center">
+  <img src="demo.gif" alt="embbridge demo" width="800">
+</p>
+
 **Embedded Debug Bridge** — adb, but for embedded systems.
 
 A lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, and device forensics.
@@ -80,6 +84,7 @@ chmod +x /tmp/edb-agent
 | `rm`, `mv`, `cp`, `mkdir`, `chmod` | File operations |
 | `ps` | Process tree |
 | `ss` | Network connections with PIDs |
+| `ip`, `ip-route` | Network interfaces and routing table |
 | `uname`, `whoami` | System info |
 | `dmesg` | Kernel log |
 | `strings <file>` | Extract printable strings |
@@ -147,7 +152,6 @@ All binaries are statically linked (~50-180KB) with no runtime dependencies.
 ## Future Features
 
 - **Relative paths** — support `./` and `../` in common commands
-- **`ip` command** — show interfaces (`ip a`) and routes (`ip r`)
 - **Interactive exec** — PTY support for interactive sessions
 
 ## License
