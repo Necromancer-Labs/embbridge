@@ -371,6 +371,22 @@ func (p *Protocol) Mtd() (*Response, error) {
 	return p.RecvResponse()
 }
 
+// IpAddr shows network interfaces
+func (p *Protocol) IpAddr() (*Response, error) {
+	if _, err := p.SendRequest("ip_addr", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
+// IpRoute shows routing table
+func (p *Protocol) IpRoute() (*Response, error) {
+	if _, err := p.SendRequest("ip_route", nil); err != nil {
+		return nil, err
+	}
+	return p.RecvResponse()
+}
+
 // Rm removes a file or empty directory
 func (p *Protocol) Rm(path string) (*Response, error) {
 	args := map[string]interface{}{"path": path}

@@ -245,6 +245,26 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 	}
 	commands = append(commands, mtdCmd)
 
+	// ip command
+	ipCmd := &cobra.Command{
+		Use:   "ip",
+		Short: "Show network interfaces",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doIpAddr()
+		},
+	}
+	commands = append(commands, ipCmd)
+
+	// ip-route command
+	ipRouteCmd := &cobra.Command{
+		Use:   "ip-route",
+		Short: "Show routing table",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doIpRoute()
+		},
+	}
+	commands = append(commands, ipRouteCmd)
+
 	// ==========================================================================
 	// File transfer commands
 	// ==========================================================================

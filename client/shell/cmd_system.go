@@ -385,3 +385,37 @@ func (m *EDBModule) doMtd() {
 	}
 	fmt.Println("\nTip: Use 'pull /dev/mtdX' to download a partition")
 }
+
+func (m *EDBModule) doIpAddr() {
+	resp, err := m.proto.IpAddr()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if content, ok := resp.Data["content"].([]byte); ok {
+		fmt.Print(string(content))
+	}
+}
+
+func (m *EDBModule) doIpRoute() {
+	resp, err := m.proto.IpRoute()
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if content, ok := resp.Data["content"].([]byte); ok {
+		fmt.Print(string(content))
+	}
+}

@@ -68,6 +68,8 @@ typedef enum {
     CMD_DMESG,
     CMD_STRINGS,
     CMD_CPUINFO,
+    CMD_IP_ADDR,
+    CMD_IP_ROUTE,
 } cmd_type_t;
 
 /* =============================================================================
@@ -229,6 +231,8 @@ int cmd_dmesg(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_strings(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_cpuinfo(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_mtd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_ip_addr(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_ip_route(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 
 /* =============================================================================
  * Path Utilities (src/commands/helpers.c)

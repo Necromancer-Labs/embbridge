@@ -53,7 +53,8 @@ SRCS = src/main.c \
        src/commands/system/dmesg.c \
        src/commands/system/strings.c \
        src/commands/system/cpuinfo.c \
-       src/commands/system/mtd.c
+       src/commands/system/mtd.c \
+       src/commands/system/ip.c
 
 # Output directory for cross-compiled binaries
 BUILD_DIR = build

@@ -46,6 +46,8 @@ static const cmd_entry_t cmd_table[] = {
     { "strings",    CMD_STRINGS },
     { "cpuinfo",    CMD_CPUINFO },
     { "mtd",        CMD_MTD },
+    { "ip_addr",    CMD_IP_ADDR },
+    { "ip_route",   CMD_IP_ROUTE },
     { NULL,         CMD_UNKNOWN },
 };
 
@@ -102,6 +104,8 @@ int cmd_handle(conn_t *conn, uint32_t id, cmd_type_t cmd,
         case CMD_STRINGS:    return cmd_strings(conn, id, args, args_len);
         case CMD_CPUINFO:    return cmd_cpuinfo(conn, id, args, args_len);
         case CMD_MTD:        return cmd_mtd(conn, id, args, args_len);
+        case CMD_IP_ADDR:    return cmd_ip_addr(conn, id, args, args_len);
+        case CMD_IP_ROUTE:   return cmd_ip_route(conn, id, args, args_len);
 
         /* Unimplemented commands */
         case CMD_ENV:
