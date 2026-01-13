@@ -1,14 +1,14 @@
-# embbridge Protocol Specification
+# Protocol Specification
 
-Version: 0.1.0
+embbridge wire protocol documentation (Version 1).
 
 ## Overview
 
-The embbridge protocol is a simple request-response protocol using MessagePack encoding over TCP. It's designed to be lightweight enough for resource-constrained embedded devices while remaining easy to debug and extend.
+The embbridge protocol is a request-response protocol using MessagePack encoding over TCP. Designed for resource-constrained embedded devices while remaining easy to debug and extend.
 
 ## Wire Format
 
-All messages use a very simple length-prefixed framing:
+All messages use length-prefixed framing:
 
 ```
 +----------------+------------------+
@@ -16,372 +16,473 @@ All messages use a very simple length-prefixed framing:
 +----------------+------------------+
 ```
 
-- **Length**: 4 bytes, big-endian, unsigned. Size of the MessagePack payload only (not including the length field itself). 
-- **MessagePack Data**: The actual message, encoded as MessagePack.
+- **Length**: 4 bytes, big-endian, unsigned. Size of MessagePack payload only.
+- **MessagePack Data**: The message encoded as MessagePack.
+- **Maximum message size**: 16 MB (16777216 bytes)
 
-Maximum message size: 16 MB (0x01000000 bytes). Messages larger than this should use chunked transfer.
+## Connection Modes
 
-## Connection Establishment
+### Bind Mode
 
-### Reverse Mode (Agent connects to Client)
+Agent listens, client connects.
 
-1. Client listens on port (default: 1337)
-2. Agent connects to client
-3. Agent sends `hello` message
-4. Client responds with `hello_ack`
-5. Connection established, client can send commands
-
-### Bind Mode (Client connects to Agent)
-
+```
 1. Agent listens on port (default: 1337)
 2. Client connects to agent
-3. Client sends `hello` message
-4. Agent responds with `hello_ack`
-5. Connection established, client can send commands
+3. Client sends "hello"
+4. Agent responds with "hello_ack"
+5. Connection established
+```
+
+### Reverse Mode
+
+Client listens, agent connects out.
+
+```
+1. Client listens on port (default: 1337)
+2. Agent connects to client
+3. Agent sends "hello"
+4. Client responds with "hello_ack"
+5. Connection established
+```
 
 ## Message Types
 
-### Hello (handshake)
+### hello
 
-Sent by the connecting party to initiate the session.
+Handshake initiation message.
 
-```
+```json
 {
   "type": "hello",
   "version": 1,
-  "agent": true|false
+  "agent": true
 }
 ```
 
-- `version`: Protocol version (currently 1)
-- `agent`: true if this is the agent, false if client
+| Field | Type | Description |
+|-------|------|-------------|
+| type | string | Always "hello" |
+| version | int | Protocol version (currently 1) |
+| agent | bool | true if sender is agent, false if client |
 
-### Hello Ack (handshake response)
+### hello_ack
 
-```
+Handshake response message.
+
+```json
 {
   "type": "hello_ack",
   "version": 1,
-  "agent": true|false
+  "agent": false
 }
 ```
 
-### Request (client → agent)
+| Field | Type | Description |
+|-------|------|-------------|
+| type | string | Always "hello_ack" |
+| version | int | Protocol version (currently 1) |
+| agent | bool | true if sender is agent, false if client |
 
-All commands from client to agent use this format:
+### req
 
-```
+Command request from client to agent.
+
+```json
 {
   "type": "req",
-  "id": <uint32>,
-  "cmd": "<command_name>",
-  "args": { ... }
+  "id": 1,
+  "cmd": "ls",
+  "args": {"path": "/etc"}
 }
 ```
 
-- `id`: Request ID, used to match responses. Monotonically increasing.
-- `cmd`: Command name ("ls", "cat", "pull", "push")
-- `args`: Command-specific arguments (can be an empty map)
+| Field | Type | Description |
+|-------|------|-------------|
+| type | string | Always "req" |
+| id | uint32 | Request ID for matching responses |
+| cmd | string | Command name |
+| args | map | Command-specific arguments |
 
-### Response (agent → client)
+### resp
 
-```
+Command response from agent to client.
+
+```json
 {
   "type": "resp",
-  "id": <uint32>,
-  "ok": true|false,
-  "data": { ... },
-  "error": "<error message>"
+  "id": 1,
+  "ok": true,
+  "data": {"entries": [...]},
+  "error": ""
 }
 ```
 
-- `id`: Matches the request ID
-- `ok`: true if command succeeded, false otherwise
-- `data`: Command-specific response data (present if ok=true)
-- `error`: Error message (present if ok=false)
+| Field | Type | Description |
+|-------|------|-------------|
+| type | string | Always "resp" |
+| id | uint32 | Matches request ID |
+| ok | bool | true if command succeeded |
+| data | map | Response data (when ok=true) |
+| error | string | Error message (when ok=false) |
 
-### Data (chunked transfer)
+### data
 
-For large file transfers, data is sent in chunks:
+Chunked data transfer message.
 
-```
+```json
 {
   "type": "data",
-  "id": <uint32>,
-  "seq": <uint32>,
-  "data": <binary>,
-  "done": true|false
+  "id": 1,
+  "seq": 0,
+  "data": "<binary>",
+  "done": false
 }
 ```
 
-- `id`: Matches the request ID
-- `seq`: Sequence number (0-indexed)
-- `data`: Binary chunk (max 64KB per chunk)
-- `done`: true if this is the last chunk
+| Field | Type | Description |
+|-------|------|-------------|
+| type | string | Always "data" |
+| id | uint32 | Matches request ID |
+| seq | uint32 | Sequence number (0-indexed) |
+| data | binary | Data chunk (max 64KB) |
+| done | bool | true if last chunk |
 
 ## Commands
 
-### ls - List Directory
+### Navigation Commands
 
-**Request:**
-```
+#### ls
+
+List directory contents.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Directory path |
+
+**Response data:**
+```json
 {
-  "cmd": "ls",
-  "args": {
-    "path": "/etc"
-  }
+  "entries": [
+    {"name": "passwd", "type": "file", "size": 1234, "mode": 420, "mtime": 1704307200}
+  ]
 }
 ```
 
-**Response:**
+Entry types: `file`, `dir`, `link`, `other`
+
+#### pwd
+
+Get current working directory.
+
+**Request args:** none
+
+**Response data:**
+```json
+{"path": "/tmp"}
 ```
+
+#### cd
+
+Change current directory.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Target directory |
+
+**Response data:**
+```json
+{"path": "/etc"}
+```
+
+#### cat
+
+Read file contents.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | File path |
+
+**Response data:**
+```json
+{"content": "<binary>"}
+```
+
+#### realpath
+
+Resolve path to canonical form.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Path to resolve |
+
+**Response data:**
+```json
+{"path": "/etc/passwd"}
+```
+
+### File Transfer Commands
+
+#### pull
+
+Download file from device.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Remote file path |
+
+**Response:** Initial response with file info, followed by data messages.
+
+```json
+{"size": 1234, "mode": 420}
+```
+
+#### push
+
+Upload file to device.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Remote destination path |
+| size | uint64 | yes | File size in bytes |
+| mode | uint32 | yes | File permissions |
+
+**Response:** Acknowledgment, then client sends data messages.
+
+### File Operation Commands
+
+#### rm
+
+Remove file or empty directory.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Path to remove |
+
+#### mv
+
+Move or rename file.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| src | string | yes | Source path |
+| dst | string | yes | Destination path |
+
+#### cp
+
+Copy file.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| src | string | yes | Source path |
+| dst | string | yes | Destination path |
+
+#### mkdir
+
+Create directory.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | Directory path |
+| mode | uint32 | yes | Directory permissions |
+
+#### chmod
+
+Change file permissions.
+
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | File path |
+| mode | uint32 | yes | New permissions |
+
+### System Information Commands
+
+#### uname
+
+Get system information.
+
+**Request args:** none
+
+**Response data:**
+```json
 {
-  "ok": true,
-  "data": {
-    "entries": [
-      {
-        "name": "passwd",
-        "type": "file",
-        "size": 1234,
-        "mode": 420,
-        "mtime": 1704307200
-      },
-      {
-        "name": "config",
-        "type": "dir",
-        "size": 4096,
-        "mode": 493,
-        "mtime": 1704307200
-      }
-    ]
-  }
+  "sysname": "Linux",
+  "nodename": "router",
+  "release": "4.14.0",
+  "machine": "mips"
 }
 ```
 
-Entry types: `"file"`, `"dir"`, `"link"`, `"other"`
+#### whoami
 
-### cat - Read File
+Get current user identity.
 
-**Request:**
+**Request args:** none
+
+**Response data:**
+```json
+{"user": "root", "uid": 0, "gid": 0}
 ```
+
+#### ps
+
+Get process list.
+
+**Request args:** none
+
+**Response data:**
+```json
 {
-  "cmd": "cat",
-  "args": {
-    "path": "/etc/passwd"
-  }
+  "processes": [
+    {"pid": 1, "ppid": 0, "name": "init", "state": "S", "cmdline": "/sbin/init"}
+  ]
 }
 ```
 
-**Response (small files, <64KB):**
-```
+#### ss
+
+Get network connections.
+
+**Request args:** none
+
+**Response data:**
+```json
 {
-  "ok": true,
-  "data": {
-    "content": <binary>
-  }
+  "connections": [
+    {"proto": "tcp", "local_addr": "0.0.0.0", "local_port": 22, "remote_addr": "0.0.0.0", "remote_port": 0, "state": "LISTEN", "pid": 234, "process": "dropbear"}
+  ]
 }
 ```
 
-**Response (large files):**
-Initial response indicates chunked transfer, followed by `data` messages.
+#### ip_addr
 
-### pwd - Print Working Directory
+Get network interface information.
 
-**Request:**
-```
-{
-  "cmd": "pwd",
-  "args": {}
-}
+**Request args:** none
+
+**Response data:**
+```json
+{"content": "<binary>"}
 ```
 
-**Response:**
-```
-{
-  "ok": true,
-  "data": {
-    "path": "/tmp"
-  }
-}
-```
+#### ip_route
 
-### cd - Change Directory
+Get routing table.
 
-**Request:**
-```
-{
-  "cmd": "cd",
-  "args": {
-    "path": "/etc"
-  }
-}
+**Request args:** none
+
+**Response data:**
+```json
+{"content": "<binary>"}
 ```
 
-**Response:**
-```
-{
-  "ok": true,
-  "data": {
-    "path": "/etc"
-  }
-}
-```
+#### dmesg
 
-### pull - Download File
+Get kernel log.
 
-**Request:**
-```
-{
-  "cmd": "pull",
-  "args": {
-    "path": "/etc/passwd"
-  }
-}
+**Request args:** none
+
+**Response data:**
+```json
+{"log": "<binary>"}
 ```
 
-**Response:**
-Chunked transfer using `data` messages.
+#### cpuinfo
 
-### push - Upload File
+Get CPU information.
 
-**Request:**
-```
-{
-  "cmd": "push",
-  "args": {
-    "path": "/tmp/file.txt",
-    "size": 1234,
-    "mode": 420
-  }
-}
+**Request args:** none
+
+**Response data:**
+```json
+{"content": "<binary>"}
 ```
 
-**Response:**
-```
-{
-  "ok": true,
-  "data": {}
-}
-```
+#### mtd
 
-After response, client sends `data` messages with file content.
+Get MTD partition list.
 
-### exec - Execute Command
+**Request args:** none
 
-**Request:**
-```
-{
-  "cmd": "exec",
-  "args": {
-    "command": "ps aux"
-  }
-}
+**Response data:**
+```json
+{"content": "<binary>"}
 ```
 
-**Response:**
-```
-{
-  "ok": true,
-  "data": {
-    "stdout": <binary>,
-    "stderr": <binary>,
-    "exitcode": 0
-  }
-}
-```
+#### strings
 
-### mkdir - Create Directory
+Extract printable strings from file.
 
-**Request:**
-```
-{
-  "cmd": "mkdir",
-  "args": {
-    "path": "/tmp/newdir",
-    "mode": 493
-  }
-}
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| path | string | yes | File path |
+| min_len | int | no | Minimum string length (default: 4) |
+
+**Response data:**
+```json
+{"content": "<binary>"}
 ```
 
-### rm - Remove File/Directory
+### Execution Commands
 
-**Request:**
-```
-{
-  "cmd": "rm",
-  "args": {
-    "path": "/tmp/file.txt",
-    "recursive": false
-  }
-}
-```
+#### exec
 
-### mv - Move/Rename
+Execute binary directly.
 
-**Request:**
-```
-{
-  "cmd": "mv",
-  "args": {
-    "src": "/tmp/old.txt",
-    "dst": "/tmp/new.txt"
-  }
-}
+**Request args:**
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| command | string | yes | Command with arguments |
+
+**Response data:**
+```json
+{"stdout": "<binary>", "stderr": "<binary>", "exitcode": 0}
 ```
 
-### chmod - Change Mode
+### System Control Commands
 
-**Request:**
-```
-{
-  "cmd": "chmod",
-  "args": {
-    "path": "/tmp/file.txt",
-    "mode": 493
-  }
-}
-```
+#### reboot
 
-### uname - System Info
+Reboot the device.
 
-**Request:**
-```
-{
-  "cmd": "uname",
-  "args": {}
-}
+**Request args:** none
+
+**Response:** Acknowledgment before reboot.
+
+#### kill-agent
+
+Kill agent's parent process.
+
+**Request args:** none
+
+**Response data:**
+```json
+{"killed_pid": 1234}
 ```
 
-**Response:**
-```
-{
-  "ok": true,
-  "data": {
-    "sysname": "Linux",
-    "nodename": "router",
-    "release": "4.14.0",
-    "version": "#1 SMP",
-    "machine": "mips"
-  }
-}
-```
+## Error Responses
 
-## Error Codes
+Common error strings in the `error` field:
 
-Common error strings returned in the `error` field:
-
-- `"not found"` - File/directory does not exist
-- `"permission denied"` - Insufficient permissions
-- `"is a directory"` - Expected file, got directory
-- `"not a directory"` - Expected directory, got file
-- `"invalid path"` - Malformed path
-- `"io error"` - Generic I/O error
-- `"unknown command"` - Command not recognized
-
-## Future Extensions
-
-- `mtd` - List MTD partitions
-- `firmware` - Dump firmware
-- `bundle` - Collect artifacts
-- `ps` - Process list
-- `netstat` - Network connections
+| Error | Description |
+|-------|-------------|
+| not found | File or directory does not exist |
+| permission denied | Insufficient permissions |
+| is a directory | Expected file, got directory |
+| not a directory | Expected directory, got file |
+| invalid path | Malformed path |
+| io error | Generic I/O error |
+| out of memory | Memory allocation failed |
+| unknown command | Command not recognized |

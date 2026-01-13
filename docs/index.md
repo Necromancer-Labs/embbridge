@@ -1,33 +1,74 @@
 # embbridge
 
-**Embedded Debug Bridge** — adb, but for embedded systems.
+Embedded Debug Bridge - adb for embedded Linux systems.
 
-A lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, and device forensics.
+## Overview
 
-## Why embbridge?
+embbridge is a lightweight agent/client tool for interacting with embedded Linux devices. It provides a consistent interface for firmware analysis, security research, and device forensics.
 
-Android has `adb`. Embedded Linux has nothing. Every device is different — different shells, different utilities, different transfer methods. embbridge gives you a consistent interface that works everywhere.
+## Key Features
 
-- **One agent binary** — statically linked, ~100KB, runs anywhere
-- **Zero dependencies** — doesn't need busybox, shell, or anything on target
-- **Consistent interface** — same commands work on every device
+- **Single static binary** - No dependencies, runs on any Linux system
+- **Small footprint** - Agent binaries are 100-200KB
+- **Cross-platform** - Supports ARM, ARM64, MIPS, MIPSEL, x86_64
+- **File transfer** - Pull and push files with progress indication
+- **System inspection** - Process listing, network connections, kernel logs
+- **No shell required** - Works without busybox or any shell on target
 
-## Quick Links
+## Use Cases
 
-- [Quick Start](quickstart.md) — Get up and running in 5 minutes
-- [Commands](commands.md) — Full command reference
-- [Building](building.md) — Build from source
-- [Protocol](protocol.md) — Wire protocol specification
+- Firmware extraction and analysis
+- Embedded device forensics
+- Security research and vulnerability assessment
+- IoT device debugging
+- Router and access point analysis
+
+## Documentation
+
+| Document | Description |
+|----------|-------------|
+| [Quick Start](quickstart.md) | Get running in 5 minutes |
+| [Commands](commands.md) | Complete command reference |
+| [Building](building.md) | Build from source |
+| [Protocol](protocol.md) | Wire protocol specification |
 
 ## Supported Architectures
 
-| Binary | Compatibility | Typical Devices |
-|--------|---------------|-----------------|
-| `edb-agent-arm` | ARMv5+ (v5, v6, v7, v8 32-bit) | Raspberry Pi, routers, IoT |
-| `edb-agent-arm64` | AArch64 | Modern ARM systems |
+| Binary | Architecture | Typical Devices |
+|--------|--------------|-----------------|
+| `edb-agent-arm` | ARM 32-bit (ARMv5+) | Raspberry Pi, routers, IoT devices |
+| `edb-agent-arm64` | ARM 64-bit (AArch64) | Modern ARM servers and SBCs |
 | `edb-agent-mips` | MIPS32 big-endian | Broadcom/Atheros routers |
-| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers |
+| `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers, embedded devices |
+| `edb-agent-x86_64` | x86 64-bit | Standard Linux systems, VMs |
+
+## Client Binary
+
+| Binary | Platform |
+|--------|----------|
+| `edb-client-linux-amd64` | Linux x86_64 |
+
+## Quick Example
+
+```bash
+# On target device (agent)
+./edb-agent -l 1337
+
+# On your workstation (client)
+./edb shell 192.168.1.50:1337
+
+# Now you have a shell
+edb[/]# ls /etc
+edb[/]# pull /etc/passwd ./passwd.txt
+edb[/]# ps
+edb[/]# ss
+```
 
 ## License
 
-MIT — [Necromancer Labs](https://github.com/Necromancer-Labs)
+MIT License - [Necromancer Labs](https://github.com/Necromancer-Labs)
+
+## Links
+
+- [GitHub Repository](https://github.com/Necromancer-Labs/embbridge)
+- [Releases](https://github.com/Necromancer-Labs/embbridge/releases)
