@@ -11,6 +11,8 @@
   <br>
   <a href="https://github.com/Necromancer-Labs"><img src="https://img.shields.io/badge/GitHub-Necromancer--Labs-8A2BE2?style=for-the-badge&labelColor=374151&logo=github&logoColor=white" alt="GitHub"></a>
   <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://img.shields.io/badge/Shell-gocmd2-8A2BE2?style=for-the-badge&labelColor=374151&logo=go&logoColor=white" alt="gocmd2"></a>
+  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://img.shields.io/badge/TUI-Bubble_Tea-8A2BE2?style=for-the-badge&labelColor=374151&logo=go&logoColor=white" alt="Bubble Tea"></a>
+  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://img.shields.io/badge/Style-Lipgloss-8A2BE2?style=for-the-badge&labelColor=374151&logo=go&logoColor=white" alt="Lipgloss"></a>
   <a href="https://necromancer-labs.github.io/embbridge/"><img src="https://img.shields.io/badge/Docs-Read-0ea5e9?style=for-the-badge&labelColor=374151" alt="Docs"></a>
 </p>
 
@@ -31,6 +33,14 @@ Android has `adb`. You can `adb pull`, `adb push`, `adb shell`, etc. It's standa
 
 Embedded systems now have `edb`. You can `edb pull`, `edb push`, `edb shell`, etc. Cross-compiled with [buildroot](https://github.com/buildroot/buildroot) to several architectures, it is also standard, reliable, and (*should*) works the same on every (*most*) devices. 
 
+## TUI Libraries
+The TUI uses a hybrid architecture — see [tui/README.md](tui/README.md) for details.
+
+<p align="center">
+  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://camo.githubusercontent.com/8900c0a53d50adb571d7aec5fc1a452b383c1d64209f864c84b1c4657a2b6b8a/68747470733a2f2f73747566662e636861726d2e73682f627562626c657465612f627562626c652d7465612d76322d6461726b2e706e67" alt="Bubble Tea" height="200"></a>
+  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://camo.githubusercontent.com/f71f9a14d14abc8b27f4f534faa28cb443f35a8375cf03cb1864ea8dd63dd0c7/68747470733a2f2f73747566662e636861726d2e73682f6c6970676c6f73732f6c69702d676c6f73732d6461726b2d323032352d30362e706e67" alt="Lipgloss" height="200"></a>
+  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://raw.githubusercontent.com/Necromancer-Labs/gocmd2/main/gocmd2-banner.png" alt="gocmd2" height="200"></a>
+</p>
 
 ## Quick Start
 
@@ -85,6 +95,10 @@ chmod +x /tmp/edb-agent
 
 ## Connection Modes
 
+### Single Device (1-to-1)
+
+Use the `edb` client for quick, direct connections:
+
 **Bind mode** — agent listens, you connect to it:
 ```bash
 # Device
@@ -102,6 +116,25 @@ chmod +x /tmp/edb-agent
 # Device
 ./edb-agent -c 192.168.1.100:1337
 ```
+
+### Multiple Devices (1-to-Many) — Graveyard TUI
+
+For managing multiple devices, use **Graveyard** — a full-featured TUI that tracks all your agents:
+
+```bash
+# Start the graveyard dashboard
+cd tui && ./graveyard
+
+# Agents connect in bind mode
+./edb-agent -l 1337
+```
+
+Graveyard features:
+- **Visual dashboard** — see all connected devices at a glance
+- **Persistent memory** — devices are saved to `~/.graveyard_devices.yaml`
+- **Reconnection** — previously-seen devices appear on restart, ready to reconnect
+- **Device customization** — custom names, colors, and architecture labels
+- **Status tracking** — live status badges (LIVE, DEAD, BUSY, XFER)
 
 ## Building from source
 
