@@ -23,6 +23,11 @@
   <img src="demo.gif" alt="embbridge demo" width="600">
 </p>
 
+<p align="center">
+  <em>Graveyard — multi-device TUI dashboard</em><br><br>
+  <img src="graveyard.png" alt="graveyard TUI" width="600">
+</p>
+
 **Embedded Debug Bridge - embbridge** — like adb, but edb
 
 `edb` is a protocol and lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, device forensics, kernel debugging, and more.
@@ -37,9 +42,9 @@ Embedded systems now have `edb`. You can `edb pull`, `edb push`, `edb shell`, et
 The TUI uses a hybrid architecture — see [tui/README.md](tui/README.md) for details.
 
 <p align="center">
-  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://camo.githubusercontent.com/8900c0a53d50adb571d7aec5fc1a452b383c1d64209f864c84b1c4657a2b6b8a/68747470733a2f2f73747566662e636861726d2e73682f627562626c657465612f627562626c652d7465612d76322d6461726b2e706e67" alt="Bubble Tea" height="200"></a>
-  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://camo.githubusercontent.com/f71f9a14d14abc8b27f4f534faa28cb443f35a8375cf03cb1864ea8dd63dd0c7/68747470733a2f2f73747566662e636861726d2e73682f6c6970676c6f73732f6c69702d676c6f73732d6461726b2d323032352d30362e706e67" alt="Lipgloss" height="200"></a>
-  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://raw.githubusercontent.com/Necromancer-Labs/gocmd2/main/gocmd2-banner.png" alt="gocmd2" height="200"></a>
+  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://camo.githubusercontent.com/8900c0a53d50adb571d7aec5fc1a452b383c1d64209f864c84b1c4657a2b6b8a/68747470733a2f2f73747566662e636861726d2e73682f627562626c657465612f627562626c652d7465612d76322d6461726b2e706e67" alt="Bubble Tea" height="100"></a>
+  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://camo.githubusercontent.com/f71f9a14d14abc8b27f4f534faa28cb443f35a8375cf03cb1864ea8dd63dd0c7/68747470733a2f2f73747566662e636861726d2e73682f6c6970676c6f73732f6c69702d676c6f73732d6461726b2d323032352d30362e706e67" alt="Lipgloss" height="100"></a>
+  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://raw.githubusercontent.com/Necromancer-Labs/gocmd2/main/gocmd2-banner.png" alt="gocmd2" height="100"></a>
 </p>
 
 ## Quick Start
