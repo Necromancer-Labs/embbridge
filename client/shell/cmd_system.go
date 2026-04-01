@@ -247,6 +247,24 @@ func (m *EDBModule) doSs() {
 	}
 }
 
+func (m *EDBModule) doKill(pid int, signal int) {
+	resp, err := m.proto.Kill(pid, signal)
+	if err != nil {
+		fmt.Printf("Error: %v\n", err)
+		return
+	}
+
+	if !resp.OK {
+		fmt.Printf("Error: %s\n", resp.Error)
+		return
+	}
+
+	if signal == 0 {
+		signal = 9
+	}
+	fmt.Printf("Sent signal %d to pid %d\n", signal, pid)
+}
+
 func (m *EDBModule) doExec(command string) {
 	resp, err := m.proto.Exec(command)
 	if err != nil {

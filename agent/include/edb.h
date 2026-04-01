@@ -33,6 +33,7 @@ typedef enum {
     MSG_REQ         = 3,
     MSG_RESP        = 4,
     MSG_DATA        = 5,
+    MSG_TUNNEL_DATA = 6,  /* Bidirectional tunnel data */
 } msg_type_t;
 
 /* =============================================================================
@@ -70,6 +71,9 @@ typedef enum {
     CMD_CPUINFO,
     CMD_IP_ADDR,
     CMD_IP_ROUTE,
+    CMD_KILL,           /* Kill a process by PID */
+    CMD_FORWARD_OPEN,   /* Open a port forward tunnel */
+    CMD_FORWARD_CLOSE,  /* Close the current tunnel */
 } cmd_type_t;
 
 /* =============================================================================
@@ -96,6 +100,13 @@ typedef struct {
     char        cwd[EDB_PATH_MAX];
     uint8_t     *recvbuf;
     size_t      recvbuf_size;
+
+    /* Port forward tunnel state (single tunnel at a time) */
+    int         tunnel_fd;        /* Socket to forwarded target, -1 if inactive */
+    uint32_t    tunnel_id;        /* Request ID for this tunnel */
+    char        tunnel_host[256]; /* Target host for reconnection */
+    uint16_t    tunnel_port;      /* Target port for reconnection */
+    int         tunnel_socktype;  /* SOCK_STREAM (TCP) or SOCK_DGRAM (UDP) */
 } conn_t;
 
 /* =============================================================================
@@ -225,6 +236,7 @@ int cmd_ps(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_exec(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_netstat(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_kill_agent(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_kill(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_reboot(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_whoami(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_dmesg(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
@@ -233,6 +245,13 @@ int cmd_cpuinfo(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len)
 int cmd_mtd(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_ip_addr(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
 int cmd_ip_route(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+
+/* Port forwarding (forward.c) */
+int cmd_forward_open(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int cmd_forward_close(conn_t *conn, uint32_t id, const uint8_t *args, size_t args_len);
+int tunnel_send_data(conn_t *conn, const uint8_t *data, size_t len);
+int tunnel_handle_data(conn_t *conn, const uint8_t *msg, size_t msg_len);
+void tunnel_close(conn_t *conn);
 
 /* =============================================================================
  * Path Utilities (src/commands/helpers.c)

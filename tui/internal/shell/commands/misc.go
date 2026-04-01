@@ -4,6 +4,7 @@ package commands
 
 import (
 	"fmt"
+	"strconv"
 
 	"github.com/spf13/cobra"
 )
@@ -107,6 +108,54 @@ func (m *Module) StringsCmd() *cobra.Command {
 	}
 	cmd.Flags().IntVarP(&minLen, "min", "n", 4, "Minimum string length")
 	return cmd
+}
+
+// KillCmd sends a signal to a process on the remote device.
+// Usage: kill <pid> [signal]
+// Default signal is 9 (SIGKILL).
+func (m *Module) KillCmd() *cobra.Command {
+	return &cobra.Command{
+		Use:   "kill <pid> [signal]",
+		Short: "Send a signal to a process (default: 9/SIGKILL)",
+		Args:  cobra.RangeArgs(1, 2),
+		Run: func(cmd *cobra.Command, args []string) {
+			session := m.GetSession()
+			if session == nil {
+				PrintError("No active session")
+				return
+			}
+
+			pid, err := strconv.Atoi(args[0])
+			if err != nil {
+				PrintError(fmt.Sprintf("Invalid pid: %s", args[0]))
+				return
+			}
+
+			sig := 0
+			if len(args) > 1 {
+				sig, err = strconv.Atoi(args[1])
+				if err != nil {
+					PrintError(fmt.Sprintf("Invalid signal: %s", args[1]))
+					return
+				}
+			}
+
+			resp, err := session.Kill(pid, sig)
+			if err != nil {
+				PrintError(err.Error())
+				return
+			}
+			if !resp.OK {
+				PrintError(resp.Error)
+				return
+			}
+
+			if sig == 0 {
+				sig = 9
+			}
+			PrintSuccess(fmt.Sprintf("Sent signal %d to pid %d", sig, pid))
+		},
+	}
 }
 
 // RebootCmd reboots the remote device.

@@ -10,6 +10,7 @@ package shell
 import (
 	"fmt"
 	"path/filepath"
+	"strconv"
 	"strings"
 
 	"github.com/Necromancer-Labs/embbridge/client/protocol"
@@ -180,6 +181,30 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 		},
 	}
 	commands = append(commands, killAgentCmd)
+
+	// kill command
+	killCmd := &cobra.Command{
+		Use:   "kill <pid> [signal]",
+		Short: "Send a signal to a process (default: 9/SIGKILL)",
+		Args:  cobra.RangeArgs(1, 2),
+		Run: func(cmd *cobra.Command, args []string) {
+			pid, err := strconv.Atoi(args[0])
+			if err != nil {
+				fmt.Printf("Error: invalid pid: %s\n", args[0])
+				return
+			}
+			sig := 0 // let agent default to SIGKILL
+			if len(args) > 1 {
+				sig, err = strconv.Atoi(args[1])
+				if err != nil {
+					fmt.Printf("Error: invalid signal: %s\n", args[1])
+					return
+				}
+			}
+			m.doKill(pid, sig)
+		},
+	}
+	commands = append(commands, killCmd)
 
 	// reboot command
 	rebootCmd := &cobra.Command{
@@ -381,6 +406,83 @@ func (m *EDBModule) GetCommands() []*cobra.Command {
 		},
 	}
 	commands = append(commands, chmodCmd)
+
+	// ==========================================================================
+	// Port forwarding commands
+	// ==========================================================================
+
+	// forward command
+	forwardCmd := &cobra.Command{
+		Use:   "forward-tcp <localport> <remotehost> <remoteport>",
+		Short: "Open a TCP port forward tunnel through the agent",
+		Long: `Forward local TCP port to a remote host via the agent.
+
+Examples:
+  forward-tcp 8080 192.168.1.100 80     Access neighbor device's web UI at localhost:8080
+  forward-tcp 8554 localhost 554        Access device's RTSP stream at localhost:8554
+  forward-tcp 9000 10.0.0.1 22          SSH to another device via localhost:9000`,
+		Args: cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			localPort, err := parsePort(args[0])
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			remotePort, err := parsePort(args[2])
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			m.doForward(localPort, args[1], remotePort)
+		},
+	}
+	commands = append(commands, forwardCmd)
+
+	// forward-stop command
+	forwardStopCmd := &cobra.Command{
+		Use:   "forward-stop",
+		Short: "Close the active port forward tunnel",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doForwardStop()
+		},
+	}
+	commands = append(commands, forwardStopCmd)
+
+	// forward-status command
+	forwardStatusCmd := &cobra.Command{
+		Use:   "forward-status",
+		Short: "Show the status of the active port forward tunnel",
+		Run: func(cmd *cobra.Command, args []string) {
+			m.doForwardStatus()
+		},
+	}
+	commands = append(commands, forwardStatusCmd)
+
+	// forward-udp command
+	forwardUDPCmd := &cobra.Command{
+		Use:   "forward-udp <localport> <remotehost> <remoteport>",
+		Short: "Open a UDP port forward tunnel through the agent",
+		Long: `Forward local UDP port to a remote host via the agent.
+
+Examples:
+  forward-udp 1900 239.255.255.250 1900   Inspect UPnP/SSDP on the LAN
+  forward-udp 5353 224.0.0.251 5353        Inspect mDNS on the LAN`,
+		Args: cobra.ExactArgs(3),
+		Run: func(cmd *cobra.Command, args []string) {
+			localPort, err := parsePort(args[0])
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			remotePort, err := parsePort(args[2])
+			if err != nil {
+				fmt.Printf("Error: %v\n", err)
+				return
+			}
+			m.doForwardUDP(localPort, args[1], remotePort)
+		},
+	}
+	commands = append(commands, forwardUDPCmd)
 
 	return commands
 }

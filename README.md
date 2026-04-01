@@ -25,7 +25,7 @@
 
 <p align="center">
   <em>Graveyard — multi-device TUI dashboard</em><br><br>
-  <img src="graveyard.png" alt="graveyard TUI" width="600">
+  <img src="graveyardtui.png" alt="graveyard TUI" width="600">
 </p>
 
 **Embedded Debug Bridge - embbridge** — like adb, but edb
@@ -60,7 +60,7 @@ cat /proc/cpuinfo
 
 | CPU | Binary |
 |-----|--------|
-| ARMv5+ (v5, v6, v7) | `edb-agent-arm` |
+| ARMv5+ | `edb-agent-arm` |
 | ARM64 / AArch64 | `edb-agent-arm64` |
 | MIPS32 big-endian | `edb-agent-mips` |
 | MIPS32 little-endian | `edb-agent-mipsel` |
@@ -78,7 +78,13 @@ chmod +x /tmp/edb-agent
 
 **4. Connect from workstation:**
 ```bash
+# Interactive shell
 ./edb shell 192.168.1.50:1337
+
+# Single command (non-interactive)
+./edb run 192.168.1.50:1337 uname
+./edb run 192.168.1.50:1337 ls /tmp
+./edb run 192.168.1.50:1337 pull /etc/passwd ./passwd
 ```
 
 ## Features
@@ -96,6 +102,10 @@ chmod +x /tmp/edb-agent
 | `dmesg` | Kernel log |
 | `strings <file>` | Extract printable strings |
 | `exec <cmd>` | Run binary (no shell) |
+| `forward-tcp <lport> <rhost> <rport>` | TCP port forward through agent |
+| `forward-udp <lport> <rhost> <rport>` | UDP port forward through agent |
+| `forward-stop` / `forward-status` | Tunnel management |
+| `kill <pid> [signal]` | Send signal to process (default: SIGKILL) |
 | `reboot` | Reboot device |
 
 ## Connection Modes
@@ -171,13 +181,32 @@ Cross-compilation requires buildroot toolchains. Run `./scripts/build-toolchains
 | `edb-agent-mips` | MIPS32 big-endian | Broadcom routers |
 | `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers like tplinks or Dlinks |
 
-All binaries are statically linked (~50-180KB) with no runtime dependencies.
+All binaries are statically linked (~130-200KB) with no runtime dependencies.
 
 ## Design
 
 - **Agent (C)**: Tiny static binary. No external dependencies. All commands implemented natively — no reliance on busybox or target shell.
 - **Client (Go)**: Interactive readline shell with history.
 - **Protocol**: MessagePack over TCP with length-prefixed framing.
+
+## Port Forwarding
+
+Access services on the device's network from your workstation:
+
+```bash
+# TCP — access a web UI on the device's LAN
+forward-tcp 8080 192.168.0.1 80
+curl http://127.0.0.1:8080
+
+# UDP — inspect UPnP/SSDP traffic
+forward-udp 1900 239.255.255.250 1900
+
+# Check status / close
+forward-status
+forward-stop
+```
+
+The tunnel flows: `localhost:localport → agent → target:remoteport`. Commands like `ls`, `ps`, etc. continue to work while a tunnel is active.
 
 ## Future Features
 

@@ -27,6 +27,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <unistd.h>
 #include <arpa/inet.h>
 
 #include "edb.h"
@@ -590,13 +591,89 @@ int proto_send_data(conn_t *conn, uint32_t id, uint32_t seq,
  * ============================================================================= */
 
 /*
+ * Check if message is a tunnel message by peeking at the type field.
+ * Returns: 0 = not tunnel, 1 = tunnel_data, 2 = tunnel_reconnect
+ *
+ * tunnel_data and tunnel_reconnect have different fields than normal requests
+ * and would fail the request parser, so we detect them early.
+ */
+#define TUNNEL_MSG_NONE      0
+#define TUNNEL_MSG_DATA      1
+#define TUNNEL_MSG_RECONNECT 2
+
+static int get_tunnel_msg_type(const uint8_t *msg, size_t msg_len)
+{
+    mp_reader_t r;
+    mp_reader_init(&r, msg, msg_len);
+
+    /* Read map header */
+    size_t map_count;
+    if (mp_read_map(&r, &map_count) < 0) {
+        return TUNNEL_MSG_NONE;
+    }
+
+    /* Look for "type" field in first few entries */
+    for (size_t i = 0; i < map_count && i < 3; i++) {
+        const char *key;
+        size_t key_len;
+        if (mp_read_str(&r, &key, &key_len) < 0) {
+            return TUNNEL_MSG_NONE;
+        }
+
+        if (key_len == 4 && memcmp(key, "type", 4) == 0) {
+            const char *type_str;
+            size_t type_len;
+            if (mp_read_str(&r, &type_str, &type_len) < 0) {
+                return TUNNEL_MSG_NONE;
+            }
+            if (type_len == 11 && memcmp(type_str, "tunnel_data", 11) == 0) {
+                return TUNNEL_MSG_DATA;
+            }
+            if (type_len == 16 && memcmp(type_str, "tunnel_reconnect", 16) == 0) {
+                return TUNNEL_MSG_RECONNECT;
+            }
+            return TUNNEL_MSG_NONE;
+        }
+
+        /* Skip this value - we only care about "type" */
+        /* For simplicity, break and return 0 if type wasn't first */
+        return TUNNEL_MSG_NONE;
+    }
+
+    return TUNNEL_MSG_NONE;
+}
+
+/*
  * Parse an incoming request and dispatch to command handlers.
  *
  * Expected format:
  * { "type": "req", "id": <uint>, "cmd": "<string>", "args": { ... } }
+ *
+ * Also handles tunnel_data messages:
+ * { "type": "tunnel_data", "id": <uint>, "data": <binary> }
  */
 int handle_request(conn_t *conn, const uint8_t *msg, size_t msg_len)
 {
+    /*
+     * Check for tunnel messages first - they have different fields
+     * and would fail the normal request parser.
+     */
+    int tmt = get_tunnel_msg_type(msg, msg_len);
+    if (tmt == TUNNEL_MSG_DATA) {
+        return tunnel_handle_data(conn, msg, msg_len);
+    }
+    if (tmt == TUNNEL_MSG_RECONNECT) {
+        /* Client is signaling a new local connection replaced the old one.
+         * Close the stale target fd so the next tunnel_data triggers a
+         * fresh connect via tunnel_reconnect(). */
+        if (conn->tunnel_fd >= 0) {
+            close(conn->tunnel_fd);
+            conn->tunnel_fd = -1;
+            LOG("Tunnel target reset by client (will reconnect on next data)");
+        }
+        return 0;
+    }
+
     mp_reader_t r;
     mp_reader_init(&r, msg, msg_len);
 
@@ -647,14 +724,20 @@ int handle_request(conn_t *conn, const uint8_t *msg, size_t msg_len)
             r.pos = msg_len;  /* Move to end */
         } else {
             /* Skip unknown field - for now just fail */
-            LOG("Unknown field in request");
+            LOG("Unknown field in request: %.*s", (int)key_len, key);
             return proto_send_error(conn, (uint32_t)id, "unknown field");
         }
     }
 
+    /* Check message type */
+    if (type_str == NULL) {
+        LOG("No type in message");
+        return proto_send_error(conn, (uint32_t)id, "missing type");
+    }
+
     /* Validate we got a request */
-    if (type_str == NULL || type_len != 3 || memcmp(type_str, "req", 3) != 0) {
-        LOG("Not a request message");
+    if (type_len != 3 || memcmp(type_str, "req", 3) != 0) {
+        LOG("Not a request message: %.*s", (int)type_len, type_str);
         return proto_send_error(conn, (uint32_t)id, "expected request");
     }
 
