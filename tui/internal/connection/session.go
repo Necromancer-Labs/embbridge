@@ -340,6 +340,18 @@ func (s *Session) Chmod(path string, mode uint32) (*protocol.Response, error) {
 	return s.proto.Chmod(path, mode)
 }
 
+// Kill sends a signal to a process
+func (s *Session) Kill(pid int, signal int) (*protocol.Response, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil, fmt.Errorf("session closed")
+	}
+
+	return s.proto.Kill(pid, signal)
+}
+
 // Reboot reboots the device
 func (s *Session) Reboot() (*protocol.Response, error) {
 	s.mu.Lock()
@@ -434,6 +446,36 @@ func (s *Session) Strings(path string, minLen int) (*protocol.Response, error) {
 	}
 
 	return s.proto.Strings(path, minLen)
+}
+
+// ForwardOpen opens a port forward tunnel to the specified host:port.
+// transport is "tcp" or "udp" (empty defaults to "tcp").
+func (s *Session) ForwardOpen(host string, port uint16, transport string) (*protocol.Response, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil, fmt.Errorf("session closed")
+	}
+
+	return s.proto.ForwardOpen(host, port, transport)
+}
+
+// ForwardClose closes the current port forward tunnel
+func (s *Session) ForwardClose() (*protocol.Response, error) {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+
+	if s.closed {
+		return nil, fmt.Errorf("session closed")
+	}
+
+	return s.proto.ForwardClose()
+}
+
+// GetProto returns the underlying protocol for advanced operations
+func (s *Session) GetProto() *protocol.Protocol {
+	return s.proto
 }
 
 // Helper to convert interface{} to int

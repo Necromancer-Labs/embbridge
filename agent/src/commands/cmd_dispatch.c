@@ -40,15 +40,18 @@ static const cmd_entry_t cmd_table[] = {
     { "firmware", CMD_FIRMWARE },
     { "hexdump",    CMD_HEXDUMP },
     { "kill-agent", CMD_KILL_AGENT },
+    { "kill",       CMD_KILL },
     { "reboot",     CMD_REBOOT },
     { "whoami",     CMD_WHOAMI },
     { "dmesg",      CMD_DMESG },
     { "strings",    CMD_STRINGS },
     { "cpuinfo",    CMD_CPUINFO },
     { "mtd",        CMD_MTD },
-    { "ip_addr",    CMD_IP_ADDR },
-    { "ip_route",   CMD_IP_ROUTE },
-    { NULL,         CMD_UNKNOWN },
+    { "ip_addr",       CMD_IP_ADDR },
+    { "ip_route",      CMD_IP_ROUTE },
+    { "forward_open",  CMD_FORWARD_OPEN },
+    { "forward_close", CMD_FORWARD_CLOSE },
+    { NULL,            CMD_UNKNOWN },
 };
 
 /* =============================================================================
@@ -98,6 +101,7 @@ int cmd_handle(conn_t *conn, uint32_t id, cmd_type_t cmd,
         case CMD_EXEC:       return cmd_exec(conn, id, args, args_len);
         case CMD_NETSTAT:    return cmd_netstat(conn, id, args, args_len);
         case CMD_KILL_AGENT: return cmd_kill_agent(conn, id, args, args_len);
+        case CMD_KILL:       return cmd_kill(conn, id, args, args_len);
         case CMD_REBOOT:     return cmd_reboot(conn, id, args, args_len);
         case CMD_WHOAMI:     return cmd_whoami(conn, id, args, args_len);
         case CMD_DMESG:      return cmd_dmesg(conn, id, args, args_len);
@@ -106,6 +110,10 @@ int cmd_handle(conn_t *conn, uint32_t id, cmd_type_t cmd,
         case CMD_MTD:        return cmd_mtd(conn, id, args, args_len);
         case CMD_IP_ADDR:    return cmd_ip_addr(conn, id, args, args_len);
         case CMD_IP_ROUTE:   return cmd_ip_route(conn, id, args, args_len);
+
+        /* Port forwarding (forward.c) */
+        case CMD_FORWARD_OPEN:  return cmd_forward_open(conn, id, args, args_len);
+        case CMD_FORWARD_CLOSE: return cmd_forward_close(conn, id, args, args_len);
 
         /* Unimplemented commands */
         case CMD_ENV:

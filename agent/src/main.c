@@ -16,9 +16,15 @@
 #include <string.h>
 #include <unistd.h>
 #include <signal.h>
+#include <errno.h>
 #include <sys/wait.h>
+#include <sys/select.h>
+#include <sys/socket.h>
 
 #include "edb.h"
+
+/* Buffer for reading tunnel data */
+#define TUNNEL_READ_BUF  32768
 
 /* -----------------------------------------------------------------------------
  * Globals
@@ -186,11 +192,53 @@ static int do_handshake(conn_t *conn, conn_mode_t mode)
 /* Forward declaration */
 int handle_request(conn_t *conn, const uint8_t *msg, size_t msg_len);
 
+/*
+ * Read and forward data from tunnel socket to client.
+ * Called when tunnel_fd has data available.
+ */
+static void handle_tunnel_data(conn_t *conn)
+{
+    static uint8_t buf[TUNNEL_READ_BUF];
+    ssize_t n;
+
+    if (conn->tunnel_socktype == SOCK_DGRAM) {
+        /* UDP: recv() on connected socket, no EOF concept */
+        n = recv(conn->tunnel_fd, buf, sizeof(buf), 0);
+        if (n < 0) {
+            if (errno == EAGAIN || errno == EWOULDBLOCK) {
+                return;
+            }
+            LOG("UDP tunnel recv error: %s", strerror(errno));
+            return;  /* Don't close — UDP is connectionless */
+        }
+    } else {
+        /* TCP: read() with EOF/reconnect handling */
+        n = read(conn->tunnel_fd, buf, sizeof(buf));
+        if (n <= 0) {
+            if (n < 0 && (errno == EAGAIN || errno == EWOULDBLOCK)) {
+                return;
+            }
+            LOG("Tunnel target closed connection (fd will reconnect on next data)");
+            close(conn->tunnel_fd);
+            conn->tunnel_fd = -1;
+            return;
+        }
+    }
+
+    if (tunnel_send_data(conn, buf, n) < 0) {
+        LOG("Failed to send tunnel data to client");
+        tunnel_close(conn);
+    }
+}
+
 static int run_session(conn_t *conn, conn_mode_t mode)
 {
     uint8_t *msg = NULL;
     size_t msg_len;
     int ret;
+    fd_set rfds;
+    int maxfd;
+    struct timeval tv;
 
     /* Perform handshake */
     if (do_handshake(conn, mode) < 0) {
@@ -200,22 +248,59 @@ static int run_session(conn_t *conn, conn_mode_t mode)
     LOG("Session started, cwd=%s", conn->cwd);
 
     while (g_running) {
-        /* Receive a message */
-        ret = proto_recv(conn, &msg, &msg_len);
+        /* Setup file descriptors to watch */
+        FD_ZERO(&rfds);
+        FD_SET(conn->sockfd, &rfds);
+        maxfd = conn->sockfd;
+
+        /* Also watch tunnel socket if active */
+        if (conn->tunnel_fd >= 0) {
+            FD_SET(conn->tunnel_fd, &rfds);
+            if (conn->tunnel_fd > maxfd) {
+                maxfd = conn->tunnel_fd;
+            }
+        }
+
+        /* Wait for activity with timeout (allows checking g_running) */
+        tv.tv_sec = 1;
+        tv.tv_usec = 0;
+
+        ret = select(maxfd + 1, &rfds, NULL, NULL, &tv);
         if (ret < 0) {
-            LOG("Connection closed or error");
+            if (errno == EINTR) {
+                continue;  /* Interrupted by signal */
+            }
+            LOG("select error: %s", strerror(errno));
             break;
         }
 
-        LOG("Received message (%zu bytes)", msg_len);
-
-        /* Handle the request */
-        if (handle_request(conn, msg, msg_len) < 0) {
-            LOG("Failed to handle request");
+        if (ret == 0) {
+            continue;  /* Timeout, check g_running */
         }
 
-        free(msg);
-        msg = NULL;
+        /* Check tunnel socket first (high priority for streaming) */
+        if (conn->tunnel_fd >= 0 && FD_ISSET(conn->tunnel_fd, &rfds)) {
+            handle_tunnel_data(conn);
+        }
+
+        /* Check embbridge socket */
+        if (FD_ISSET(conn->sockfd, &rfds)) {
+            ret = proto_recv(conn, &msg, &msg_len);
+            if (ret < 0) {
+                LOG("Connection closed or error");
+                break;
+            }
+
+            LOG("Received message (%zu bytes)", msg_len);
+
+            /* Handle the request */
+            if (handle_request(conn, msg, msg_len) < 0) {
+                LOG("Failed to handle request");
+            }
+
+            free(msg);
+            msg = NULL;
+        }
     }
 
     if (msg) {
@@ -233,6 +318,11 @@ static int init_conn(conn_t *conn)
 {
     memset(conn, 0, sizeof(*conn));
     conn->sockfd = -1;
+    conn->tunnel_fd = -1;  /* No active tunnel */
+    conn->tunnel_id = 0;
+    conn->tunnel_host[0] = '\0';
+    conn->tunnel_port = 0;
+    conn->tunnel_socktype = SOCK_STREAM;
 
     /* Set initial working directory */
     if (getcwd(conn->cwd, sizeof(conn->cwd)) == NULL) {
@@ -252,6 +342,9 @@ static int init_conn(conn_t *conn)
 
 static void cleanup_conn(conn_t *conn)
 {
+    /* Close any active tunnel */
+    tunnel_close(conn);
+
     if (conn->sockfd >= 0) {
         transport_close(conn->sockfd);
     }

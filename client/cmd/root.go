@@ -26,7 +26,8 @@ investigation, and research.
 
 Usage:
   edb listen              Listen for agent connections (reverse mode)
-  edb shell <host:port>   Connect to agent (bind mode)`,
+  edb shell <host:port>   Connect to agent (bind mode)
+  edb run <host:port> <command> [args...]   Run a single command`,
 	Version: Version,
 }
 

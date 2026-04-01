@@ -43,11 +43,13 @@ SRCS = src/main.c \
        src/commands/basic_commands.c \
        src/commands/file_transfer.c \
        src/commands/file_operations.c \
+       src/commands/forward.c \
        src/commands/system/uname.c \
        src/commands/system/ps.c \
        src/commands/system/exec.c \
        src/commands/system/ss.c \
        src/commands/system/kill_agent.c \
+       src/commands/system/kill.c \
        src/commands/system/reboot.c \
        src/commands/system/whoami.c \
        src/commands/system/dmesg.c \

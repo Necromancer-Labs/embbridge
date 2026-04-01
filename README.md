@@ -23,6 +23,11 @@
   <img src="demo.gif" alt="embbridge demo" width="600">
 </p>
 
+<p align="center">
+  <em>Graveyard — multi-device TUI dashboard</em><br><br>
+  <img src="graveyardtui.png" alt="graveyard TUI" width="600">
+</p>
+
 **Embedded Debug Bridge - embbridge** — like adb, but edb
 
 `edb` is a protocol and lightweight agent/client tool for interacting with embedded devices. Useful for firmware analysis, security research, device forensics, kernel debugging, and more.
@@ -37,9 +42,9 @@ Embedded systems now have `edb`. You can `edb pull`, `edb push`, `edb shell`, et
 The TUI uses a hybrid architecture — see [tui/README.md](tui/README.md) for details.
 
 <p align="center">
-  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://camo.githubusercontent.com/8900c0a53d50adb571d7aec5fc1a452b383c1d64209f864c84b1c4657a2b6b8a/68747470733a2f2f73747566662e636861726d2e73682f627562626c657465612f627562626c652d7465612d76322d6461726b2e706e67" alt="Bubble Tea" height="200"></a>
-  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://camo.githubusercontent.com/f71f9a14d14abc8b27f4f534faa28cb443f35a8375cf03cb1864ea8dd63dd0c7/68747470733a2f2f73747566662e636861726d2e73682f6c6970676c6f73732f6c69702d676c6f73732d6461726b2d323032352d30362e706e67" alt="Lipgloss" height="200"></a>
-  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://raw.githubusercontent.com/Necromancer-Labs/gocmd2/main/gocmd2-banner.png" alt="gocmd2" height="200"></a>
+  <a href="https://github.com/charmbracelet/bubbletea"><img src="https://camo.githubusercontent.com/8900c0a53d50adb571d7aec5fc1a452b383c1d64209f864c84b1c4657a2b6b8a/68747470733a2f2f73747566662e636861726d2e73682f627562626c657465612f627562626c652d7465612d76322d6461726b2e706e67" alt="Bubble Tea" height="100"></a>
+  <a href="https://github.com/charmbracelet/lipgloss"><img src="https://camo.githubusercontent.com/f71f9a14d14abc8b27f4f534faa28cb443f35a8375cf03cb1864ea8dd63dd0c7/68747470733a2f2f73747566662e636861726d2e73682f6c6970676c6f73732f6c69702d676c6f73732d6461726b2d323032352d30362e706e67" alt="Lipgloss" height="100"></a>
+  <a href="https://github.com/Necromancer-Labs/gocmd2"><img src="https://raw.githubusercontent.com/Necromancer-Labs/gocmd2/main/gocmd2-banner.png" alt="gocmd2" height="100"></a>
 </p>
 
 ## Quick Start
@@ -55,7 +60,7 @@ cat /proc/cpuinfo
 
 | CPU | Binary |
 |-----|--------|
-| ARMv5+ (v5, v6, v7) | `edb-agent-arm` |
+| ARMv5+ | `edb-agent-arm` |
 | ARM64 / AArch64 | `edb-agent-arm64` |
 | MIPS32 big-endian | `edb-agent-mips` |
 | MIPS32 little-endian | `edb-agent-mipsel` |
@@ -73,7 +78,13 @@ chmod +x /tmp/edb-agent
 
 **4. Connect from workstation:**
 ```bash
+# Interactive shell
 ./edb shell 192.168.1.50:1337
+
+# Single command (non-interactive)
+./edb run 192.168.1.50:1337 uname
+./edb run 192.168.1.50:1337 ls /tmp
+./edb run 192.168.1.50:1337 pull /etc/passwd ./passwd
 ```
 
 ## Features
@@ -91,6 +102,10 @@ chmod +x /tmp/edb-agent
 | `dmesg` | Kernel log |
 | `strings <file>` | Extract printable strings |
 | `exec <cmd>` | Run binary (no shell) |
+| `forward-tcp <lport> <rhost> <rport>` | TCP port forward through agent |
+| `forward-udp <lport> <rhost> <rport>` | UDP port forward through agent |
+| `forward-stop` / `forward-status` | Tunnel management |
+| `kill <pid> [signal]` | Send signal to process (default: SIGKILL) |
 | `reboot` | Reboot device |
 
 ## Connection Modes
@@ -166,13 +181,32 @@ Cross-compilation requires buildroot toolchains. Run `./scripts/build-toolchains
 | `edb-agent-mips` | MIPS32 big-endian | Broadcom routers |
 | `edb-agent-mipsel` | MIPS32 little-endian | Consumer routers like tplinks or Dlinks |
 
-All binaries are statically linked (~50-180KB) with no runtime dependencies.
+All binaries are statically linked (~130-200KB) with no runtime dependencies.
 
 ## Design
 
 - **Agent (C)**: Tiny static binary. No external dependencies. All commands implemented natively — no reliance on busybox or target shell.
 - **Client (Go)**: Interactive readline shell with history.
 - **Protocol**: MessagePack over TCP with length-prefixed framing.
+
+## Port Forwarding
+
+Access services on the device's network from your workstation:
+
+```bash
+# TCP — access a web UI on the device's LAN
+forward-tcp 8080 192.168.0.1 80
+curl http://127.0.0.1:8080
+
+# UDP — inspect UPnP/SSDP traffic
+forward-udp 1900 239.255.255.250 1900
+
+# Check status / close
+forward-status
+forward-stop
+```
+
+The tunnel flows: `localhost:localport → agent → target:remoteport`. Commands like `ls`, `ps`, etc. continue to work while a tunnel is active.
 
 ## Future Features
 

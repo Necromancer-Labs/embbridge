@@ -74,6 +74,10 @@ func (m *Module) GetCommands() []*cobra.Command {
 		// Network commands (network.go)
 		m.IpAddrCmd(),
 		m.IpRouteCmd(),
+		m.ForwardCmd(),
+		m.ForwardUDPCmd(),
+		m.ForwardStopCmd(),
+		m.ForwardStatusCmd(),
 
 		// Transfer commands (transfer.go)
 		m.PullCmd(),
@@ -82,6 +86,7 @@ func (m *Module) GetCommands() []*cobra.Command {
 		// Misc commands (misc.go)
 		m.ExecCmd(),
 		m.StringsCmd(),
+		m.KillCmd(),
 		m.RebootCmd(),
 	}
 }
